@@ -35,7 +35,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-    { id: 'cursos', label: 'Meus Cursos', icon: BookOpen },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
     { id: 'mensagens', label: 'Mensagens', icon: MessageSquare, badge: unreadCount },
     { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
@@ -47,8 +46,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
     switch (activeTab) {
       case 'dashboard':
         return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} />;
-      case 'cursos':
-        return <CursosView data={data} studentData={studentData} />;
       case 'mensagens':
         return <MensagensView messages={messages} setMessages={setMessages} uid={uid} />;
       case 'financeiro':
@@ -101,13 +98,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
                   isActive ? 'text-cyan-400' : 'text-muted-foreground hover:text-white'
                 }`}
               >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeStudentTab"
-                    className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl"
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  />
-                )}
                 <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-cyan-400' : 'text-gray-500 group-hover:text-gray-300'}`} />
                 <span className="relative z-10 flex-1">{item.label}</span>
                 {item.badge != null && item.badge > 0 && (
@@ -320,17 +310,6 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <button onClick={() => setActiveTab('cursos')}
-          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-cyan-500/30 transition-colors text-left">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-            <BookOpen className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Aulas Concluídas</p>
-            <p className="font-bold text-white text-lg leading-none">{completedLessons}<span className="text-gray-500 text-sm font-normal">/{lessons.length || '–'}</span></p>
-          </div>
-        </button>
-
         <button onClick={() => setActiveTab('mensagens')}
           className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-blue-500/30 transition-colors text-left relative">
           <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
@@ -371,27 +350,6 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
         </button>
       </div>
 
-      {/* Next Lesson CTA */}
-      {nextLesson && (
-        <button onClick={() => setActiveTab('cursos')}
-          className="w-full glass-panel p-5 rounded-2xl border-white/5 hover:border-cyan-500/30 transition-all text-left flex items-center justify-between gap-4 group">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0 group-hover:scale-110 transition-transform">
-              <PlayCircle className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-0.5">Continuar de onde parou</p>
-              <p className="font-bold text-white truncate">Aula {completedLessons + 1}: {nextLesson}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{activeModule?.title}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-cyan-400 shrink-0">
-            <span className="text-sm font-bold hidden sm:block">Continuar</span>
-            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </button>
-      )}
-
       {/* Recent Messages */}
       {messages.length > 0 && (
         <div className="glass-panel p-5 rounded-2xl border-white/5">
@@ -415,67 +373,6 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function CursosView({ data, studentData }: any) {
-  const enrollments = studentData?.enrollments || [];
-  return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-black text-white mb-2 font-display">Meus Cursos</h2>
-        <p className="text-muted-foreground">Acompanhe seu progresso em cada módulo da formação.</p>
-      </div>
-      <div className="space-y-6">
-        {data.modules?.map((mod: any, i: number) => {
-          const enrollment = enrollments.find((e: any) => e.module_slug === mod.slug || e.module === mod.title);
-          const progress = enrollment ? enrollment.progress : 0;
-          const isEnrolled = !!enrollment;
-          return (
-            <div key={i} className="glass-panel p-6 md:p-8 rounded-3xl border-white/5 flex flex-col md:flex-row gap-8">
-              <div className="w-full md:w-1/3 flex flex-col justify-center">
-                <div className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-2">Módulo {mod.num}</div>
-                <h3 className="text-2xl font-bold text-white font-display mb-4">{mod.title}</h3>
-                <p className="text-sm text-muted-foreground mb-6">{mod.desc}</p>
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Progresso</span>
-                    <span className="text-white font-bold">{progress}%</span>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${progress === 100 ? 'bg-green-400' : progress > 0 ? 'bg-cyan-400' : 'bg-transparent'}`} style={{ width: `${progress}%` }}></div>
-                  </div>
-                </div>
-                <Button className={`w-full rounded-xl py-6 ${!isEnrolled ? 'bg-white/5 text-gray-500 cursor-not-allowed' : progress === 100 ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-cyan-500 text-black hover:bg-cyan-400 whimsy-hover'}`}>
-                  {!isEnrolled ? 'Bloqueado' : progress === 100 ? 'Revisar Módulo' : 'Continuar Módulo'}
-                </Button>
-              </div>
-              <div className="w-full md:w-2/3 bg-black/40 rounded-2xl p-6 border border-white/5">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Aulas do Módulo</h4>
-                <div className="space-y-3">
-                  {mod.details?.lessons?.map((lesson: string, j: number) => {
-                    const isCompleted = isEnrolled && (progress === 100 || j < Math.floor(progress / (100 / mod.details.lessons.length)));
-                    const isCurrent = isEnrolled && progress < 100 && j === Math.floor(progress / (100 / mod.details.lessons.length));
-                    const isLocked = !isEnrolled || (!isCompleted && !isCurrent);
-                    return (
-                      <div key={j} className={`flex items-center justify-between p-4 rounded-xl border ${isCurrent ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-white/5 border-transparent'} transition-colors`}>
-                        <div className="flex items-center gap-4">
-                          {isCompleted ? <CheckCircle className="w-5 h-5 text-green-400 shrink-0" />
-                            : isCurrent ? <PlayCircle className="w-5 h-5 text-cyan-400 shrink-0" />
-                            : <Lock className="w-5 h-5 text-gray-600 shrink-0" />}
-                          <span className={`font-medium ${isCompleted ? 'text-gray-300' : isCurrent ? 'text-white' : 'text-gray-500'}`}>{j + 1}. {lesson}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground hidden sm:block">Aula {j + 1}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -787,16 +684,6 @@ function SuporteView({ uid, profile }: { uid: string; profile: any }) {
               </div>
             )}
           </div>
-          <div className="glass-panel p-6 rounded-3xl border-white/5 flex items-center gap-4 group cursor-pointer hover:border-cyan-500/30 transition-colors">
-            <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-              <MessageSquare className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-white text-lg">Comunidade no Discord</h4>
-              <p className="text-sm text-muted-foreground">Tire dúvidas com outros alunos.</p>
-            </div>
-            <ExternalLink className="w-5 h-5 text-gray-500 ml-auto group-hover:text-cyan-400 transition-colors" />
-          </div>
         </div>
       </div>
     </div>
@@ -804,6 +691,7 @@ function SuporteView({ uid, profile }: { uid: string; profile: any }) {
 }
 
 function PerfilView({ uid, profile }: { uid: string; profile: any }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     full_name: profile?.full_name || '',
     avatar_url: profile?.avatar_url || '',
@@ -811,18 +699,65 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+
+  const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [isSavingPw, setIsSavingPw] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleAvatarClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    setAvatarError('');
+    try {
+      const url = await firebaseService.uploadAvatar(uid, file);
+      setForm(f => ({ ...f, avatar_url: url }));
+      await firebaseService.updateStudentProfile(uid, { avatar_url: url });
+    } catch (err: any) {
+      setAvatarError(err.message || 'Erro ao fazer upload.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await firebaseService.updateStudentProfile(uid, form);
+      await firebaseService.updateStudentProfile(uid, { full_name: form.full_name, phone: form.phone });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwMsg({ type: 'error', text: 'As senhas não coincidem.' });
+      return;
+    }
+    if (pwForm.newPassword.length < 6) {
+      setPwMsg({ type: 'error', text: 'A senha deve ter pelo menos 6 caracteres.' });
+      return;
+    }
+    setIsSavingPw(true);
+    setPwMsg(null);
+    try {
+      await firebaseService.changePassword(pwForm.newPassword);
+      setPwMsg({ type: 'success', text: 'Senha alterada com sucesso!' });
+      setPwForm({ newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      setPwMsg({ type: 'error', text: err.message || 'Erro ao alterar senha.' });
+    } finally {
+      setIsSavingPw(false);
     }
   };
 
@@ -841,16 +776,23 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Avatar Card */}
         <div className="glass-panel p-8 rounded-3xl border-white/5 flex flex-col items-center text-center">
-          <div className="relative mb-5">
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          <div className="relative mb-5 cursor-pointer group/avatar" onClick={handleAvatarClick}>
             <img
               src={form.avatar_url || `https://i.pravatar.cc/150?u=${uid}`}
               alt="Avatar"
-              className="w-24 h-24 rounded-full border-4 border-cyan-500/30 object-cover"
+              className="w-24 h-24 rounded-full border-4 border-cyan-500/30 object-cover transition-opacity group-hover/avatar:opacity-70"
             />
+            <div className="absolute inset-0 flex items-center justify-center rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+              {uploadingAvatar
+                ? <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                : <Camera className="w-6 h-6 text-white drop-shadow-lg" />}
+            </div>
             <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-cyan-500 border-2 border-[#0a0a0a] flex items-center justify-center">
               <Camera className="w-4 h-4 text-black" />
             </div>
           </div>
+          {avatarError && <p className="text-xs text-red-400 mb-2">{avatarError}</p>}
           <h3 className="text-lg font-bold text-white mb-0.5">{form.full_name || 'Aluno'}</h3>
           <p className="text-sm text-cyan-400 mb-1">Aluno Ativo</p>
           <p className="text-xs text-gray-500">{profile?.email || '—'}</p>
@@ -869,59 +811,83 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
         </div>
 
         {/* Edit Form */}
-        <div className="md:col-span-2 glass-panel p-6 md:p-8 rounded-3xl border-white/5">
-          <h3 className="text-lg font-bold text-white mb-6">Editar Informações</h3>
-          <form onSubmit={handleSave} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nome Completo</label>
-              <input
-                type="text"
-                value={form.full_name}
-                onChange={e => setForm({ ...form, full_name: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
-                placeholder="Seu nome completo"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">URL da Foto de Perfil</label>
-              <input
-                type="url"
-                value={form.avatar_url}
-                onChange={e => setForm({ ...form, avatar_url: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
-                placeholder="https://..."
-              />
-              <p className="text-xs text-gray-600 mt-1.5">Cole o link de uma imagem pública (ex: imgur, gravatar)</p>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">WhatsApp / Telefone</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">E-mail</label>
-              <input
-                type="email"
-                value={profile?.email || ''}
-                disabled
-                className="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
-              />
-              <p className="text-xs text-gray-600 mt-1.5">O e-mail não pode ser alterado por aqui</p>
-            </div>
-            <div className="pt-2">
-              <Button type="submit" disabled={isSaving} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl py-4 whimsy-hover">
-                {saved
-                  ? <><CheckCircle className="w-4 h-4 mr-2 inline" /> Salvo com sucesso!</>
-                  : isSaving ? 'Salvando...'
-                  : 'Salvar Alterações'}
-              </Button>
-            </div>
-          </form>
+        <div className="md:col-span-2 space-y-6">
+          <div className="glass-panel p-6 md:p-8 rounded-3xl border-white/5">
+            <h3 className="text-lg font-bold text-white mb-6">Editar Informações</h3>
+            <form onSubmit={handleSave} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nome Completo</label>
+                <input
+                  type="text"
+                  value={form.full_name}
+                  onChange={e => setForm({ ...form, full_name: e.target.value })}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  placeholder="Seu nome completo"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">WhatsApp / Telefone</label>
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => setForm({ ...form, phone: e.target.value })}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">E-mail</label>
+                <input
+                  type="email"
+                  value={profile?.email || ''}
+                  disabled
+                  className="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+              <div className="pt-2">
+                <Button type="submit" disabled={isSaving} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl py-4 whimsy-hover">
+                  {saved ? <><CheckCircle className="w-4 h-4 mr-2 inline" /> Salvo!</> : isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* Password Change */}
+          <div className="glass-panel p-6 md:p-8 rounded-3xl border-white/5">
+            <h3 className="text-lg font-bold text-white mb-6">Alterar Senha</h3>
+            <form onSubmit={handlePasswordChange} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nova Senha</label>
+                <input
+                  type="password"
+                  value={pwForm.newPassword}
+                  onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Confirmar Nova Senha</label>
+                <input
+                  type="password"
+                  value={pwForm.confirmPassword}
+                  onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  placeholder="Repita a nova senha"
+                  autoComplete="new-password"
+                />
+              </div>
+              {pwMsg && (
+                <p className={`text-sm font-medium ${pwMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{pwMsg.text}</p>
+              )}
+              <div className="pt-2">
+                <Button type="submit" disabled={isSavingPw} className="w-full bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl py-4">
+                  {isSavingPw ? 'Alterando...' : 'Alterar Senha'}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

@@ -75,14 +75,14 @@ export const supabaseService = {
   },
 
   async getSettings() {
-    const { data, error } = await supabaseAdmin.from('settings').select('data').eq('id', 'global').single();
+    const { data, error } = await supabaseAdmin.from('hub_settings').select('data').eq('id', 'global').single();
     if (error) return {};
     return data?.data ?? {};
   },
 
   async updateSettings(settings: any) {
-    const { error } = await supabaseAdmin.from('settings').upsert({ id: 'global', data: settings });
-    if (error) handleError(error, 'write', 'settings');
+    const { error } = await supabaseAdmin.from('hub_settings').upsert({ id: 'global', data: settings });
+    if (error) handleError(error, 'write', 'hub_settings');
     return settings;
   },
 
@@ -117,7 +117,13 @@ export const supabaseService = {
   },
 
   async getAllEnrollments() {
-    const { data, error } = await supabaseAdmin.from('enrollments').select('*').order('created_at', { ascending: false });
+    // Only public form submissions (student_id IS NULL).
+    // Admin-created student enrollments have student_id set and belong to the Students tab.
+    const { data, error } = await supabaseAdmin
+      .from('enrollments')
+      .select('*')
+      .is('student_id', null)
+      .order('created_at', { ascending: false });
     if (error) handleError(error, 'list', 'enrollments');
     return data ?? [];
   },
@@ -199,8 +205,14 @@ export const supabaseService = {
   // ── Admin ─────────────────────────────────────────────────────────────────
 
   async getAllStudents() {
-    const { data, error } = await supabaseAdmin.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false });
-    if (error) handleError(error, 'list', 'profiles');
+    // Try with role filter first; if the column doesn't exist yet fall back to all profiles
+    let { data, error } = await supabaseAdmin.from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false });
+    if (error) {
+      console.warn('getAllStudents role filter failed, fetching all profiles:', error.message);
+      const fallback = await supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false });
+      if (fallback.error) handleError(fallback.error, 'list', 'profiles');
+      data = fallback.data;
+    }
     return (data ?? []).map((s: any) => ({
       ...s,
       name: s.full_name ?? s.name ?? s.email ?? 'Aluno',
@@ -220,26 +232,72 @@ export const supabaseService = {
   },
 
   async createStudentAccount(d: { full_name: string; email: string; password: string; module_title: string; module_slug: string }) {
+    let uid: string;
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: d.email,
       password: d.password,
       email_confirm: true,
     });
-    if (authError) throw authError;
-    const uid = authData.user.id;
+
+    if (authError) {
+      // If the auth user already exists (orphaned from a previous failed attempt),
+      // find them and recover by completing the profile creation.
+      const alreadyExists =
+        authError.message?.toLowerCase().includes('already been registered') ||
+        authError.message?.toLowerCase().includes('already registered') ||
+        authError.message?.toLowerCase().includes('email address has already');
+
+      if (!alreadyExists) throw authError;
+
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      if (listError) throw listError;
+      const existing = listData.users.find((u: any) => u.email === d.email);
+      if (!existing) throw authError;
+      uid = existing.id;
+
+      // Also update password so the admin's chosen password takes effect
+      await supabaseAdmin.auth.admin.updateUserById(uid, { password: d.password }).catch(() => {});
+    } else {
+      uid = authData.user.id;
+    }
     const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(d.full_name)}`;
-    await supabaseAdmin.from('profiles').upsert({
+
+    // Build profile payload — include all desired columns; Supabase ignores unknown columns gracefully
+    // If the column doesn't exist yet the upsert will error — run supabase-schema.sql to fix
+    const profilePayload: Record<string, any> = {
       id: uid,
       full_name: d.full_name,
-      name: d.full_name,
       email: d.email,
       role: 'student',
       avatar_url: avatar,
-      avatar: avatar,
       status: 'Ativo',
       created_at: new Date().toISOString(),
-    });
-    await supabaseAdmin.from('enrollments').insert({
+    };
+
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert(profilePayload);
+    if (profileError) {
+      // Full upsert failed (likely missing columns — SQL schema not yet run).
+      // Fall back to inserting only the columns guaranteed to exist in the
+      // default Supabase starter profiles table.
+      console.warn('Full profile upsert failed, falling back to minimal columns:', profileError.message);
+      const minimalPayload: Record<string, any> = {
+        id: uid,
+        full_name: d.full_name,
+        avatar_url: avatar,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: retryError } = await supabaseAdmin.from('profiles').upsert(minimalPayload);
+      if (retryError) {
+        // Even minimal upsert failed — roll back the auth user and surface the error
+        await supabaseAdmin.auth.admin.deleteUser(uid).catch(() => {});
+        throw new Error(
+          `Erro ao criar perfil: ${retryError.message} — Execute o supabase-schema.sql no SQL Editor do Supabase antes de criar alunos.`
+        );
+      }
+    }
+
+    const { error: enrollError } = await supabaseAdmin.from('enrollments').insert({
       student_id: uid,
       email: d.email,
       module: d.module_title,
@@ -248,7 +306,25 @@ export const supabaseService = {
       progress: 0,
       created_at: new Date().toISOString(),
     });
+    if (enrollError) console.warn('Enrollment insert failed:', enrollError.message);
+
     return { uid, email: d.email };
+  },
+
+  async uploadAvatar(uid: string, file: File): Promise<string> {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${uid}/avatar.${ext}`;
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`);
+    const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(path);
+    return data.publicUrl;
+  },
+
+  async changePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   },
 
   // ── Messages ──────────────────────────────────────────────────────────────

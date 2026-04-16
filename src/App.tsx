@@ -5,7 +5,7 @@ import Autoplay from 'embla-carousel-autoplay';
 import { 
   Play, ChevronRight, Star, Users, Mic, 
   Headphones, Video, Award, ArrowRight,
-  CheckCircle2, ShieldCheck, Zap, MessageSquare,
+  ShieldCheck, Zap, MessageSquare,
   ChevronDown, ChevronLeft, X, BookOpen
 } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -534,25 +534,18 @@ function App() {
                       </div>
                       
                       <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-blue-600/20 group-hover:border-blue-600/30 transition-all duration-300">
-                        {i === 0 ? <Mic className="w-8 h-8 text-blue-400" /> : 
-                         i === 1 ? <Headphones className="w-8 h-8 text-blue-400" /> : 
-                         <Star className="w-8 h-8 text-blue-400" />}
+                        {(mod.icon === 'Headphones') ? <Headphones className="w-8 h-8 text-blue-400" /> :
+                         (mod.icon === 'Star') ? <Star className="w-8 h-8 text-blue-400" /> :
+                         (mod.icon === 'BookOpen') ? <BookOpen className="w-8 h-8 text-blue-400" /> :
+                         (mod.icon === 'Award') ? <Award className="w-8 h-8 text-blue-400" /> :
+                         <Mic className="w-8 h-8 text-blue-400" />}
                       </div>
                       
                       <h3 className="text-2xl font-bold text-white mb-4 font-display neon-text-white">{mod.title}</h3>
                       <p className="text-gray-400 mb-8 leading-relaxed line-clamp-3">{(mod.desc?.length ?? 0) > 120 ? (initialSiteData.modules[i]?.desc ?? mod.desc) : mod.desc}</p>
                       
-                      <div className="space-y-3 mb-8">
-                        {(mod.details?.lessons || mod.lessons || []).slice(0, 3).map((lesson, j) => (
-                          <div key={j} className="flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5 neon-text-blue" />
-                            <span className="text-sm text-gray-300">{lesson}</span>
-                          </div>
-                        ))}
-                      </div>
-                      
                       <div className="pt-6 border-t border-white/10 flex items-center justify-between mt-auto">
-                        <span className="text-sm font-bold text-white neon-text-white">{initialSiteData.modules[i]?.duration || mod.duration}</span>
+                        <span className="text-sm font-bold text-white neon-text-white">{mod.duration || initialSiteData.modules[i]?.duration}</span>
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleEnroll(mod.title); }}
                           className="text-xs font-bold text-blue-400 uppercase tracking-wider group-hover:translate-x-2 transition-transform flex items-center gap-1 neon-text-blue"
@@ -578,9 +571,11 @@ function App() {
                       <div>
                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-8 text-center sm:text-left">
                           <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl bg-blue-600/20 border border-blue-600/30 flex items-center justify-center shrink-0">
-                            {expandedModule === 0 ? <Mic className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> : 
-                             expandedModule === 1 ? <Headphones className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> : 
-                             <Star className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />}
+                            {(siteData.modules[expandedModule]?.icon === 'Headphones') ? <Headphones className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> :
+                             (siteData.modules[expandedModule]?.icon === 'Star') ? <Star className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> :
+                             (siteData.modules[expandedModule]?.icon === 'BookOpen') ? <BookOpen className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> :
+                             (siteData.modules[expandedModule]?.icon === 'Award') ? <Award className="w-8 h-8 md:w-10 md:h-10 text-blue-400" /> :
+                             <Mic className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />}
                           </div>
                           <div>
                             <span className="text-blue-400 font-black text-4xl md:text-6xl opacity-20 font-display leading-none neon-text-blue">{siteData.modules[expandedModule].num || String(expandedModule + 1).padStart(2, '0')}</span>
@@ -592,46 +587,6 @@ function App() {
                           {siteData.modules[expandedModule].desc}
                         </p>
 
-                        <div className="grid sm:grid-cols-2 gap-8 mb-8 lg:mb-0 px-4 md:px-0">
-                          <div className="max-w-xs mx-auto sm:mx-0 w-full">
-                            <h4 className="text-white font-bold uppercase tracking-widest text-xs mb-6 flex items-center justify-center sm:justify-start gap-2">
-                              <Zap className="w-4 h-4 text-blue-400" /> O que você vai aprender
-                            </h4>
-                            <ul className="space-y-4">
-                              {(siteData.modules[expandedModule].details?.lessons || siteData.modules[expandedModule].lessons || []).map((lesson, i) => (
-                                <motion.li 
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: i * 0.1 }}
-                                  key={i} 
-                                  className="flex items-start gap-3 text-gray-400"
-                                >
-                                  <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-                                  <span className="text-sm">{lesson}</span>
-                                </motion.li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div className="max-w-xs mx-auto sm:mx-0 w-full">
-                            <h4 className="text-white font-bold uppercase tracking-widest text-xs mb-6 flex items-center justify-center sm:justify-start gap-2">
-                              <Award className="w-4 h-4 text-blue-400" /> Metodologia
-                            </h4>
-                            <ul className="space-y-4">
-                              {(siteData.modules[expandedModule].details?.methodology || siteData.modules[expandedModule].methodology || []).map((item, i) => (
-                                <motion.li 
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  transition={{ delay: (i + 5) * 0.1 }}
-                                  key={i} 
-                                  className="flex items-start gap-3 text-gray-400"
-                                >
-                                  <Zap className="w-5 h-5 text-blue-500/50 shrink-0 mt-0.5" />
-                                  <span className="text-sm">{item}</span>
-                                </motion.li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
                       </div>
 
                       <div className="relative max-w-md mx-auto lg:mx-0 w-full mt-8 lg:mt-0">
@@ -762,39 +717,48 @@ function App() {
                     {(() => {
                       const fireMod = siteData.modules[expandedLearning] || {};
                       const seedMod = initialSiteData.modules[expandedLearning] || ({} as any);
-                      const fireLesson: string[] = fireMod.details?.lessons || fireMod.lessons || [];
-                      const lessons: string[] = fireLesson.length > 0
-                        ? fireLesson
-                        : (seedMod.details?.lessons || []);
                       const title = fireMod.title || seedMod.title || '';
-                      const duration = seedMod.duration || fireMod.duration || '6 meses';
+                      const duration = fireMod.duration || seedMod.duration || '6 meses';
+                      const modSlug = fireMod.slug || seedMod.slug || '';
+                      const moduleLearnings = (siteData.learnings || []).filter(
+                        (l: any) => l.module_slug && l.module_slug === modSlug
+                      );
                       return (
                         <>
                     <div className="mb-8 md:mb-10">
                       <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">
-                        {duration} · {lessons.length || 24} aulas
+                        {duration} · {moduleLearnings.length} aprendizado{moduleLearnings.length !== 1 ? 's' : ''}
                       </p>
                       <h3 className="text-2xl md:text-4xl font-black text-white font-display">
                         {title}
                       </h3>
                     </div>
 
+                    {moduleLearnings.length === 0 ? (
+                      <p className="text-gray-600 text-sm">Nenhum aprendizado cadastrado para este módulo.</p>
+                    ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {lessons.map((lesson: string, j: number) => (
+                      {moduleLearnings.map((learning: any, j: number) => (
                         <motion.div
-                          key={j}
+                          key={learning.id ?? j}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: j * 0.025 }}
-                          className="flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-blue-600/20 transition-colors"
+                          className="flex flex-col gap-1 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-blue-600/20 transition-colors"
                         >
-                          <span className="text-xs font-black text-blue-500 shrink-0 mt-0.5 w-5 text-right tabular-nums">
-                            {String(j + 1).padStart(2, '0')}
-                          </span>
-                          <span className="text-sm text-gray-300 leading-snug">{lesson}</span>
+                          <div className="flex items-start gap-3">
+                            <span className="text-xs font-black text-blue-500 shrink-0 mt-0.5 w-5 text-right tabular-nums">
+                              {String(j + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-sm text-gray-200 leading-snug font-medium">{learning.title}</span>
+                          </div>
+                          {learning.description && (
+                            <p className="text-xs text-gray-500 leading-snug pl-8">{learning.description}</p>
+                          )}
                         </motion.div>
                       ))}
                     </div>
+                    )}
 
                     <div className="flex flex-wrap gap-3 mt-8 pt-8 border-t border-white/10">
                       {siteData.modules.map((mod: any, i: number) => (

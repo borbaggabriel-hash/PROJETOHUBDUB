@@ -173,6 +173,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     setDraft(newDraft);
   };
 
+  const handleDetailsChange = (moduleIndex: number, detailsField: 'lessons' | 'methodology', value: string[]) => {
+    const newDraft = { ...draft };
+    newDraft.modules[moduleIndex] = {
+      ...newDraft.modules[moduleIndex],
+      details: {
+        ...(newDraft.modules[moduleIndex].details || {}),
+        [detailsField]: value,
+      },
+    };
+    setDraft(newDraft);
+  };
+
   const handleSettingChange = (field: string, value: string) => {
     setDraft({
       ...draft,
@@ -199,7 +211,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
         action: async () => {
           setIsLoading(true);
           try {
-            if (item.id) {
+            const isTemp = typeof item.id === 'string' && item.id.startsWith('temp-');
+            if (item.id && !isTemp) {
               if (section === 'banners') await firebaseService.deleteBanner(item.id);
               if (section === 'teachers') await firebaseService.deleteTeacher(item.id);
               if (section === 'enrollments') await firebaseService.deleteEnrollment(item.id);
@@ -740,29 +753,6 @@ export function AdminPanel({ data, onSave, onClose }: any) {
         {/* Ambient Background */}
         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-cyan-900/10 to-transparent pointer-events-none"></div>
         
-        {/* Topbar */}
-        <header className="h-20 border-b border-white/5 bg-black/20 backdrop-blur-md flex items-center justify-between px-8 relative z-10">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Admin</span>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-white capitalize">{activeTab}</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <button className="relative text-muted-foreground hover:text-white transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full"></span>
-            </button>
-            <div className="flex items-center gap-3 pl-6 border-l border-white/10">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-white">Administrador</p>
-                <p className="text-xs text-muted-foreground">admin@thehub.com.br</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-white/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-          </div>
-        </header>
 
         <div className="flex-1 overflow-y-auto p-8 md:p-12 relative z-10">
           <div className="max-w-6xl mx-auto">
@@ -1698,11 +1688,26 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Professor</label>
                               <input type="text" value={module.teacher} onChange={e => handleChange('modules', index, 'teacher', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all" />
                             </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Duração</label>
+                              <input type="text" value={module.duration || ''} placeholder="Ex: 6 meses" onChange={e => handleChange('modules', index, 'duration', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ícone</label>
+                              <select value={module.icon || 'Mic'} onChange={e => handleChange('modules', index, 'icon', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all appearance-none">
+                                <option value="Mic">🎙️ Microfone</option>
+                                <option value="Headphones">🎧 Fones</option>
+                                <option value="Star">⭐ Estrela</option>
+                                <option value="BookOpen">📖 Livro</option>
+                                <option value="Award">🏆 Prêmio</option>
+                              </select>
+                            </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Descrição</label>
                               <textarea value={module.desc} onChange={e => handleChange('modules', index, 'desc', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all resize-none" />
                             </div>
                           </div>
+
                         </div>
                       </div>
                     ))}
@@ -1726,7 +1731,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       <p className="text-muted-foreground">Edite os pontos de aprendizado do curso.</p>
                     </div>
                     <Button 
-                      onClick={() => handleAdd('learnings', { title: 'Novo Aprendizado', description: 'Descrição do aprendizado.' })}
+                      onClick={() => handleAdd('learnings', { title: 'Novo Aprendizado', description: 'Descrição do aprendizado.', module_slug: draft.modules?.[0]?.slug || '' })}
                       className="bg-white text-black hover:bg-gray-200 rounded-xl whimsy-hover"
                     >
                       <Plus className="w-4 h-4 mr-2" /> Adicionar Aprendizado
@@ -1749,7 +1754,20 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
-                          <div className="grid grid-cols-1 gap-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="md:col-span-2">
+                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Módulo</label>
+                              <select
+                                value={learning.module_slug || ''}
+                                onChange={e => handleChange('learnings', index, 'module_slug', e.target.value)}
+                                className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all appearance-none"
+                              >
+                                <option value="">— Sem módulo específico —</option>
+                                {draft.modules?.map((mod: any) => (
+                                  <option key={mod.slug} value={mod.slug}>{mod.title}</option>
+                                ))}
+                              </select>
+                            </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título</label>
                               <input type="text" value={learning.title} onChange={e => handleChange('learnings', index, 'title', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all" />

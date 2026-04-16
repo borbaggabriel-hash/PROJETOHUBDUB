@@ -23,8 +23,9 @@ create table if not exists teachers (
 
 create table if not exists learnings (
   id bigint primary key,
-  title text, description text
+  title text, description text, module_slug text
 );
+alter table learnings add column if not exists module_slug text;
 
 create table if not exists testimonials (
   id bigint primary key,
@@ -36,12 +37,12 @@ create table if not exists faqs (
   question text, answer text
 );
 
--- Settings (single row id='global')
-create table if not exists settings (
+-- Hub Settings (tabela própria para não conflitar com a settings existente)
+create table if not exists hub_settings (
   id text primary key default 'global',
   data jsonb not null default '{}'::jsonb
 );
-insert into settings (id, data) values ('global', '{}') on conflict (id) do nothing;
+insert into hub_settings (id, data) values ('global', '{}') on conflict (id) do nothing;
 
 -- Enrollments (public form submissions)
 create table if not exists enrollments (
@@ -131,7 +132,7 @@ alter table teachers disable row level security;
 alter table learnings disable row level security;
 alter table testimonials disable row level security;
 alter table faqs disable row level security;
-alter table settings disable row level security;
+alter table hub_settings disable row level security;
 alter table enrollments disable row level security;
 alter table profiles disable row level security;
 alter table student_enrollments disable row level security;
