@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, CreditCard,
   HelpCircle, LogOut, Bell, Search,
-  Clock, Award, ChevronRight, Mic,
+  Clock, ChevronRight, Mic,
   Calendar, AlertCircle,
   CheckCircle, MessageSquare,
   ExternalLink, PartyPopper,
-  Star, BookOpen, Video, Lock,
-  PlayCircle, Trophy, Trash2, Send, CheckCheck,
+  BookOpen, Lock,
+  PlayCircle, Trash2, Send, CheckCheck,
   User, Camera, TrendingUp
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { firebaseService } from '../services/firebaseService';
+import { firebaseService } from '../services/supabaseService';
 
 export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -39,7 +39,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
     { id: 'agenda', label: 'Agenda', icon: Calendar },
     { id: 'mensagens', label: 'Mensagens', icon: MessageSquare, badge: unreadCount },
     { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
-    { id: 'conquistas', label: 'Conquistas', icon: Trophy },
     { id: 'suporte', label: 'Suporte', icon: HelpCircle },
     { id: 'perfil', label: 'Meu Perfil', icon: User },
   ];
@@ -52,8 +51,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
         return <CursosView data={data} studentData={studentData} />;
       case 'mensagens':
         return <MensagensView messages={messages} setMessages={setMessages} uid={uid} />;
-      case 'conquistas':
-        return <ConquistasView studentData={studentData} />;
       case 'financeiro':
         return <FinanceiroView invoices={invoices} setInvoices={setInvoices} onPay={() => { setIsCelebrating(true); setTimeout(() => setIsCelebrating(false), 3000); }} />;
       case 'agenda':
@@ -537,87 +534,6 @@ function MensagensView({ messages, setMessages, uid }: any) {
   );
 }
 
-function ConquistasView({ studentData }: any) {
-  const enrollments = studentData?.enrollments || [];
-  const totalProgress = enrollments.length > 0
-    ? Math.round(enrollments.reduce((acc: number, curr: any) => acc + (curr.progress || 0), 0) / enrollments.length)
-    : 0;
-  const hasEnrollment = enrollments.length > 0;
-  const anyModuleDone = enrollments.some((e: any) => e.progress === 100);
-  const allDone = enrollments.length >= 2 && enrollments.every((e: any) => e.progress === 100);
-
-  const badges = [
-    { id: 1, title: 'Primeiro Acesso', desc: 'Entrou no portal pela primeira vez', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', unlocked: true },
-    { id: 2, title: 'Matriculado!', desc: 'Realizou a primeira matrícula na escola', icon: Award, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', unlocked: hasEnrollment },
-    { id: 3, title: 'Voz em Treinamento', desc: 'Atingiu 25% de progresso no módulo', icon: Mic, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/30', unlocked: totalProgress >= 25 },
-    { id: 4, title: 'Na Metade da Jornada', desc: 'Atingiu 50% de progresso no módulo', icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', unlocked: totalProgress >= 50 },
-    { id: 5, title: 'Módulo Concluído', desc: 'Finalizou um módulo completo', icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500/30', unlocked: anyModuleDone },
-    { id: 6, title: 'Formação Completa', desc: 'Concluiu toda a formação no THE HUB', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500/30', unlocked: allDone },
-  ];
-
-  const unlockedCount = badges.filter(b => b.unlocked).length;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-white mb-1 font-display">Conquistas</h2>
-          <p className="text-muted-foreground text-sm">Desbloqueie medalhas ao progredir no curso.</p>
-        </div>
-        <div className="glass-panel px-4 py-3 rounded-2xl border-white/5 flex items-center gap-2.5">
-          <Trophy className="w-5 h-5 text-yellow-400" />
-          <span className="font-black text-white">{unlockedCount}</span>
-          <span className="text-gray-400 text-sm">/ {badges.length} conquistadas</span>
-        </div>
-      </div>
-
-      <div className="glass-panel p-4 rounded-2xl border-white/5">
-        <div className="flex justify-between text-xs mb-2">
-          <span className="text-gray-400 font-medium">Progresso das conquistas</span>
-          <span className="text-white font-bold">{Math.round(unlockedCount / badges.length * 100)}%</span>
-        </div>
-        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${(unlockedCount / badges.length) * 100}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-            className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-400"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {badges.map((badge) => {
-          const Icon = badge.icon;
-          return (
-            <motion.div
-              key={badge.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: badge.id * 0.05 }}
-              className={`glass-panel p-6 rounded-3xl border-white/5 flex flex-col items-center text-center transition-all ${badge.unlocked ? 'hover:scale-[1.02] hover:border-white/10' : 'opacity-40 grayscale'}`}
-            >
-              <div className={`w-16 h-16 rounded-full ${badge.bg} border ${badge.border} flex items-center justify-center ${badge.color} mb-4 shadow-lg`}>
-                <Icon className="w-8 h-8" />
-              </div>
-              <h4 className="text-base font-bold text-white mb-1">{badge.title}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">{badge.desc}</p>
-              {badge.unlocked ? (
-                <div className="mt-4 px-3 py-1 rounded-full bg-green-500/10 text-xs font-bold text-green-400 flex items-center gap-1.5 border border-green-500/20">
-                  <CheckCircle className="w-3 h-3" /> Conquistada
-                </div>
-              ) : (
-                <div className="mt-4 px-3 py-1 rounded-full bg-white/5 text-xs font-medium text-gray-500 flex items-center gap-1 border border-white/10">
-                  <Lock className="w-3 h-3" /> Bloqueada
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function FinanceiroView({ invoices, setInvoices, onPay }: any) {
   const formatDate = (val: string) => val || '—';

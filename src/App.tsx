@@ -13,7 +13,7 @@ import { initialSiteData } from './data';
 import { AdminPanel } from './components/AdminPanel';
 import { Login, StudentDashboard, Secretaria } from './portal';
 import { Enrollment } from './components/Enrollment';
-import { firebaseService } from './services/firebaseService';
+import { firebaseService } from './services/supabaseService';
 
 const HeroCarousel = ({ banners }: { banners: any[] }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel(
@@ -260,13 +260,13 @@ function App() {
         if (user) {
           setCurrentUser(user);
           try {
-            await loadStudentData(user.uid);
+            await loadStudentData(user.id);
           } catch (studentError) {
             console.error('Failed to load student data:', studentError);
           }
         }
       } catch (error) {
-        console.error('Failed to load data from Firebase:', error);
+        console.error('Failed to load data from Supabase:', error);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -309,7 +309,7 @@ function App() {
     setCurrentUser(user);
     setIsLoginOpen(false);
     setIsLoading(true);
-    await loadStudentData(user.uid);
+    await loadStudentData(user.id ?? user.uid);
     setIsLoading(false);
     setIsStudentDashboardOpen(true);
   };

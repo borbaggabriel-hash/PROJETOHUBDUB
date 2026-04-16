@@ -9,11 +9,11 @@ import {
   MessageSquare, ChevronDown, CheckCircle2, XCircle,
   AlertCircle, ChevronRight, ClipboardList, Award,
   HelpCircle, CreditCard, Headphones, Calendar,
-  Megaphone, Send, Radio
+  Megaphone, Send, Radio, ChevronLeft
 } from 'lucide-react';
 import { Button } from './ui/button';
 
-import { firebaseService } from '../services/firebaseService';
+import { firebaseService } from '../services/supabaseService';
 import { initialSiteData } from '../data';
 
 export function AdminPanel({ data, onSave, onClose }: any) {
@@ -29,6 +29,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const [isCreatingStudent, setIsCreatingStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ full_name: '', email: '', password: '', module_title: '', module_slug: '' });
   const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentSubTab, setStudentSubTab] = useState<Record<string, string>>({});
   const [studentMessages, setStudentMessages] = useState<Record<string, any[]>>({});
   const [studentInvoices, setStudentInvoices] = useState<Record<string, any[]>>({});
@@ -73,7 +74,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     const checkAuth = async () => {
       const user = await firebaseService.getCurrentUser();
       if (user) {
-        const profile = await firebaseService.getStudentProfile(user.uid);
+        const profile = await firebaseService.getStudentProfile(user.id);
         if (profile?.role === 'owner' || user.email === 'borbaggabriel@gmail.com' || user.email === 'borba.costelinha@gmail.com') {
           setAuth(true);
         }
@@ -134,7 +135,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
       const user = result.user;
       if (user) {
         // Check if user is owner
-        const profile = await firebaseService.getStudentProfile(user.uid);
+        const profile = await firebaseService.getStudentProfile(user.id);
         if (profile?.role === 'owner' || user.email === 'borbaggabriel@gmail.com' || user.email === 'borba.costelinha@gmail.com') {
           setAuth(true);
           toast.success('Acesso concedido ao painel administrativo.');
@@ -506,6 +507,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
       toast.success('Ticket atualizado.');
     } catch { toast.error('Erro ao atualizar ticket.'); }
     finally { setIsLoading(false); }
+  };
+
+  const handleDeleteStudent = async (uid: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este aluno? Esta ação removerá o perfil do banco de dados e não pode ser desfeita.')) return;
+    try {
+      await firebaseService.deleteStudent(uid);
+      setDraft((prev: any) => ({ ...prev, students: (prev.students || []).filter((s: any) => s.id !== uid) }));
+      setSelectedStudentId(null);
+      toast.success('Aluno excluído com sucesso.');
+    } catch {
+      toast.error('Erro ao excluir aluno.');
+    }
   };
 
   const handleBroadcast = async (e: React.FormEvent) => {
@@ -997,439 +1010,493 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-8"
+                  className="space-y-6"
                 >
-                  {/* Header */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Portal do Aluno</h3>
-                      <p className="text-muted-foreground">Crie contas, gerencie matrículas, mensagens e financeiro de cada aluno.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input
-                          type="text"
-                          value={searchStudent}
-                          onChange={e => setSearchStudent(e.target.value)}
-                          placeholder="Buscar aluno..."
-                          className="bg-black/50 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors w-full md:w-64"
-                        />
-                      </div>
-                      <Button
-                        onClick={() => setIsCreatingStudent(v => !v)}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover shrink-0"
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Novo Aluno
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Create Student Form */}
-                  <AnimatePresence>
-                    {isCreatingStudent && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <form onSubmit={handleCreateStudent} className="glass-panel p-8 rounded-3xl border-cyan-500/20 bg-cyan-500/5 space-y-6">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                              <GraduationCap className="w-4 h-4" />
-                            </div>
-                            <h4 className="text-lg font-bold text-white">Criar Conta de Aluno</h4>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nome Completo</label>
-                              <input type="text" value={newStudent.full_name} onChange={e => setNewStudent(p => ({ ...p, full_name: e.target.value }))} placeholder="Ana Silva" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">E-mail</label>
-                              <input type="email" value={newStudent.email} onChange={e => setNewStudent(p => ({ ...p, email: e.target.value }))} placeholder="ana@email.com" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Senha de Acesso</label>
-                              <input type="text" value={newStudent.password} onChange={e => setNewStudent(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required minLength={6} />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Módulo Inicial</label>
-                              <select
-                                value={newStudent.module_title}
-                                onChange={e => {
-                                  const mod = draft.modules?.find((m: any) => m.title === e.target.value);
-                                  setNewStudent(p => ({ ...p, module_title: e.target.value, module_slug: mod?.slug || '' }));
-                                }}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
-                                required
-                              >
-                                <option value="">Selecione um módulo</option>
-                                {draft.modules?.map((m: any) => (
-                                  <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <Button type="submit" disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                              {isLoading ? 'Criando...' : 'Criar Conta e Matricular'}
-                            </Button>
-                            <Button type="button" onClick={() => setIsCreatingStudent(false)} variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl">
-                              Cancelar
-                            </Button>
-                          </div>
-                        </form>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Student List */}
-                  <div className="space-y-4">
-                    {filteredStudents.length === 0 ? (
-                      <div className="glass-panel p-12 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
-                        <GraduationCap className="w-12 h-12 text-gray-600 mb-4" />
-                        <p className="text-gray-400 font-medium">Nenhum aluno encontrado.</p>
-                        <p className="text-gray-600 text-sm mt-1">Clique em "Novo Aluno" para criar a primeira conta.</p>
-                      </div>
-                    ) : (
-                      filteredStudents.map((student: any) => {
-                        const uid = student.id;
-                        const isExpanded = expandedStudentId === uid;
+                  <AnimatePresence mode="wait">
+                    {selectedStudentId ? (
+                      /* ── STUDENT DETAIL PAGE ── */
+                      (() => {
+                        const student = draft.students?.find((s: any) => s.id === selectedStudentId);
+                        const uid = selectedStudentId;
                         const subTab = studentSubTab[uid] || 'matricula';
                         const msgs = studentMessages[uid] || [];
                         const invs = studentInvoices[uid] || [];
                         const prog = studentProgress[uid];
-
                         return (
-                          <div key={uid} className="glass-panel rounded-3xl border-white/5 overflow-hidden">
-                            {/* Student Row */}
-                            <button
-                              onClick={() => {
-                                if (!isExpanded) {
-                                  handleLoadStudentPortalData(uid);
-                                  handleLoadAgendaAndSupport(uid);
-                                }
-                                setExpandedStudentId(isExpanded ? null : uid);
-                              }}
-                              className="w-full flex items-center gap-4 p-5 hover:bg-white/[0.02] transition-colors text-left"
-                            >
-                              <img src={student.avatar} alt={student.name} className="w-12 h-12 rounded-full border border-white/10 shrink-0" />
+                          <motion.div
+                            key="detail"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-6"
+                          >
+                            {/* Top bar */}
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                              <button
+                                onClick={() => setSelectedStudentId(null)}
+                                className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors font-medium"
+                              >
+                                <ChevronLeft className="w-4 h-4" /> Voltar para alunos
+                              </button>
+                              <button
+                                onClick={() => handleDeleteStudent(uid)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 text-sm font-bold transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" /> Excluir Aluno
+                              </button>
+                            </div>
+
+                            {/* Student info card */}
+                            <div className="glass-panel p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                              <img
+                                src={student?.avatar}
+                                alt={student?.name}
+                                className="w-16 h-16 rounded-full border-2 border-white/10 shrink-0 object-cover"
+                              />
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-white">{student.name}</p>
-                                <p className="text-xs text-muted-foreground">{student.email}</p>
+                                <h3 className="text-2xl font-black text-white font-display tracking-tight">{student?.name}</h3>
+                                <p className="text-muted-foreground text-sm mt-0.5">{student?.email}</p>
                               </div>
-                              <div className="hidden sm:flex items-center gap-2 shrink-0">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${student.status === 'Ativo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                                  {student.status || 'Ativo'}
-                                </span>
-                              </div>
-                              <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
-                            </button>
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
+                                (student?.status || 'Ativo') === 'Ativo' ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                                : (student?.status) === 'Formado' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              }`}>
+                                {student?.status || 'Ativo'}
+                              </span>
+                            </div>
 
-                            {/* Expanded Panel */}
-                            <AnimatePresence>
-                              {isExpanded && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.25 }}
-                                  className="overflow-hidden border-t border-white/5"
-                                >
-                                  {/* Sub Tabs */}
-                                  <div className="flex gap-2 px-5 pt-5 border-b border-white/5 pb-0">
-                                    {[
-                                      { id: 'matricula', label: 'Matrícula', icon: BookOpen },
-                                      { id: 'mensagens', label: 'Mensagens', icon: MessageSquare },
-                                      { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
-                                      { id: 'agenda', label: 'Agenda', icon: Calendar },
-                                      { id: 'suporte', label: 'Suporte', icon: Headphones },
-                                    ].map(t => (
-                                      <button
-                                        key={t.id}
-                                        onClick={() => setStudentSubTab(p => ({ ...p, [uid]: t.id }))}
-                                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${subTab === t.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-gray-500 hover:text-white'}`}
-                                      >
-                                        <t.icon className="w-4 h-4" /> {t.label}
-                                      </button>
-                                    ))}
+                            {/* Sub-tabs panel */}
+                            <div className="glass-panel rounded-3xl border-white/5 overflow-hidden">
+                              <div className="flex gap-1 px-5 pt-4 border-b border-white/5 overflow-x-auto">
+                                {[
+                                  { id: 'matricula', label: 'Matrícula', icon: BookOpen },
+                                  { id: 'mensagens', label: 'Mensagens', icon: MessageSquare },
+                                  { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
+                                  { id: 'agenda', label: 'Agenda', icon: Calendar },
+                                  { id: 'suporte', label: 'Suporte', icon: Headphones },
+                                ].map(t => (
+                                  <button
+                                    key={t.id}
+                                    onClick={() => setStudentSubTab(p => ({ ...p, [uid]: t.id }))}
+                                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${subTab === t.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-gray-500 hover:text-white'}`}
+                                  >
+                                    <t.icon className="w-4 h-4" /> {t.label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="p-6 space-y-4">
+                                {/* MATRÍCULA */}
+                                {subTab === 'matricula' && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm text-gray-400">Defina o módulo atual, status e progresso do aluno no Portal do Aluno.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Módulo Atual</label>
+                                        <select
+                                          value={prog?.module_title || ''}
+                                          onChange={e => {
+                                            const mod = draft.modules?.find((m: any) => m.title === e.target.value);
+                                            setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], module_title: e.target.value, module_slug: mod?.slug || '', status: p[uid]?.status || 'Ativo', progress: p[uid]?.progress || 0 } }));
+                                          }}
+                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                        >
+                                          <option value="" className="bg-[#111]">Selecione</option>
+                                          {draft.modules?.map((m: any) => (
+                                            <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
+                                        <select
+                                          value={prog?.status || 'Ativo'}
+                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], status: e.target.value, module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', progress: p[uid]?.progress || 0 } }))}
+                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                        >
+                                          <option className="bg-[#111]" value="Ativo">Ativo</option>
+                                          <option className="bg-[#111]" value="Inativo">Inativo</option>
+                                          <option className="bg-[#111]" value="Trancado">Trancado</option>
+                                          <option className="bg-[#111]" value="Formado">Formado</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Progresso ({prog?.progress || 0}%)</label>
+                                        <input
+                                          type="range" min={0} max={100}
+                                          value={prog?.progress || 0}
+                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], progress: Number(e.target.value), module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', status: p[uid]?.status || 'Ativo' } }))}
+                                          className="w-full accent-cyan-400 mt-3"
+                                        />
+                                      </div>
+                                    </div>
+                                    <Button onClick={() => handleSaveStudentProgress(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                      Salvar Matrícula
+                                    </Button>
                                   </div>
+                                )}
 
-                                  <div className="p-6 space-y-4">
-                                    {/* MATRÍCULA sub-tab */}
-                                    {subTab === 'matricula' && (
-                                      <div className="space-y-4">
-                                        <p className="text-sm text-gray-400">Defina o módulo atual, status e progresso do aluno no Portal do Aluno.</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                          <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Módulo Atual</label>
-                                            <select
-                                              value={prog?.module_title || ''}
-                                              onChange={e => {
-                                                const mod = draft.modules?.find((m: any) => m.title === e.target.value);
-                                                setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], module_title: e.target.value, module_slug: mod?.slug || '', status: p[uid]?.status || 'Ativo', progress: p[uid]?.progress || 0 } }));
-                                              }}
-                                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
-                                            >
-                                              <option value="" className="bg-[#111]">Selecione</option>
-                                              {draft.modules?.map((m: any) => (
-                                                <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
-                                              ))}
-                                            </select>
-                                          </div>
-                                          <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
-                                            <select
-                                              value={prog?.status || 'Ativo'}
-                                              onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], status: e.target.value, module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', progress: p[uid]?.progress || 0 } }))}
-                                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
-                                            >
-                                              <option className="bg-[#111]" value="Ativo">Ativo</option>
-                                              <option className="bg-[#111]" value="Inativo">Inativo</option>
-                                              <option className="bg-[#111]" value="Trancado">Trancado</option>
-                                              <option className="bg-[#111]" value="Formado">Formado</option>
-                                            </select>
-                                          </div>
-                                          <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Progresso ({prog?.progress || 0}%)</label>
-                                            <input
-                                              type="range" min={0} max={100}
-                                              value={prog?.progress || 0}
-                                              onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], progress: Number(e.target.value), module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', status: p[uid]?.status || 'Ativo' } }))}
-                                              className="w-full accent-cyan-400 mt-3"
-                                            />
-                                          </div>
-                                        </div>
-                                        <Button onClick={() => handleSaveStudentProgress(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                                          Salvar Matrícula
-                                        </Button>
-                                      </div>
-                                    )}
-
-                                    {/* MENSAGENS sub-tab */}
-                                    {subTab === 'mensagens' && (
-                                      <div className="space-y-4">
-                                        <div className="space-y-3">
-                                          <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Título</label>
-                                            <input
-                                              type="text"
-                                              value={newMessage[uid]?.title || ''}
-                                              onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, body: p[uid]?.body || '' } }))}
-                                              placeholder="Ex: Lembrete da próxima aula"
-                                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Mensagem</label>
-                                            <textarea
-                                              value={newMessage[uid]?.body || ''}
-                                              onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], body: e.target.value, title: p[uid]?.title || '' } }))}
-                                              placeholder="Escreva o aviso para o aluno..."
-                                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-24"
-                                            />
-                                          </div>
-                                          <Button onClick={() => handleSendMessage(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                                            Enviar Mensagem
-                                          </Button>
-                                        </div>
-                                        {msgs.length > 0 && (
-                                          <div className="space-y-2 mt-4">
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Histórico de Mensagens</p>
-                                            {msgs.map((msg: any) => (
-                                              <div key={msg.id} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
-                                                <div className="flex-1">
-                                                  <p className="text-sm font-bold text-white">{msg.title}</p>
-                                                  <p className="text-xs text-gray-400 mt-1">{msg.body}</p>
-                                                </div>
-                                                <button onClick={() => handleDeleteStudentMessage(uid, msg.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
-                                                  <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* AGENDA sub-tab */}
-                                    {subTab === 'agenda' && (
-                                      <div className="space-y-4">
-                                        <p className="text-sm text-gray-400">Adicione aulas e eventos à agenda do aluno. Ele verá no Portal do Aluno.</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                          <input
-                                            type="text"
-                                            value={newAgendaItem[uid]?.title || ''}
-                                            onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
-                                            placeholder="Título (ex: Aula 12 — Lip-sync)"
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                          />
-                                          <input
-                                            type="date"
-                                            value={newAgendaItem[uid]?.date || ''}
-                                            onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], date: e.target.value, title: p[uid]?.title || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                          />
-                                          <input
-                                            type="time"
-                                            value={newAgendaItem[uid]?.time || ''}
-                                            onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], time: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                          />
-                                          <select
-                                            value={newAgendaItem[uid]?.type || 'Aula'}
-                                            onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], type: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '' } }))}
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
-                                          >
-                                            <option className="bg-[#111]" value="Aula">Aula</option>
-                                            <option className="bg-[#111]" value="Prova">Prova</option>
-                                            <option className="bg-[#111]" value="Banca">Banca</option>
-                                            <option className="bg-[#111]" value="Evento">Evento</option>
-                                          </select>
-                                        </div>
+                                {/* MENSAGENS */}
+                                {subTab === 'mensagens' && (
+                                  <div className="space-y-4">
+                                    <div className="space-y-3">
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Título</label>
                                         <input
                                           type="text"
-                                          value={newAgendaItem[uid]?.description || ''}
-                                          onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', type: p[uid]?.type || 'Aula' } }))}
-                                          placeholder="Descrição opcional"
+                                          value={newMessage[uid]?.title || ''}
+                                          onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, body: p[uid]?.body || '' } }))}
+                                          placeholder="Ex: Lembrete da próxima aula"
                                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
                                         />
-                                        <Button onClick={() => handleAddAgendaItem(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                                          <Plus className="w-4 h-4 mr-2" /> Adicionar Evento
-                                        </Button>
-                                        {(studentAgenda[uid] || []).length > 0 && (
-                                          <div className="space-y-2 mt-2">
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Agenda do Aluno</p>
-                                            {(studentAgenda[uid] || []).map((item: any) => (
-                                              <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-                                                <div className="flex-1">
-                                                  <p className="text-sm font-bold text-white">{item.title}</p>
-                                                  <p className="text-xs text-gray-400">{item.date} às {item.time} · {item.type}</p>
-                                                </div>
-                                                <button onClick={() => handleDeleteAgendaItem(uid, item.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                                  <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
                                       </div>
-                                    )}
-
-                                    {/* SUPORTE sub-tab (per student) */}
-                                    {subTab === 'suporte' && (
-                                      <div className="space-y-4">
-                                        <p className="text-sm text-gray-400">Responda os chamados abertos por este aluno.</p>
-                                        {(studentSupport[uid] || []).length === 0 ? (
-                                          <div className="flex flex-col items-center justify-center py-8 text-center">
-                                            <Headphones className="w-8 h-8 text-gray-600 mb-2" />
-                                            <p className="text-gray-500 text-sm">Nenhum chamado aberto por este aluno.</p>
-                                          </div>
-                                        ) : (
-                                          <div className="space-y-4">
-                                            {(studentSupport[uid] || []).map((ticket: any) => (
-                                              <div key={ticket.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
-                                                <div className="flex items-start justify-between gap-2">
-                                                  <div>
-                                                    <p className="font-bold text-white">{ticket.subject}</p>
-                                                    <p className="text-sm text-gray-400 mt-1">{ticket.message}</p>
-                                                  </div>
-                                                  <span className={`px-2 py-1 rounded-full text-xs font-bold shrink-0 ${ ticket.status === 'Resolvido' ? 'bg-green-500/10 text-green-400' : ticket.status === 'Em Análise' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-blue-500/10 text-blue-400' }`}>{ticket.status}</span>
-                                                </div>
-                                                {ticket.admin_reply && (
-                                                  <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                                                    <p className="text-xs text-cyan-400 font-bold mb-1">Resposta enviada:</p>
-                                                    <p className="text-xs text-gray-300">{ticket.admin_reply}</p>
-                                                  </div>
-                                                )}
-                                                <div className="space-y-2">
-                                                  <textarea
-                                                    value={supportReply[ticket.id] || ''}
-                                                    onChange={e => setSupportReply(p => ({ ...p, [ticket.id]: e.target.value }))}
-                                                    placeholder="Escreva sua resposta..."
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-20"
-                                                  />
-                                                  <div className="flex gap-2">
-                                                    <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Em Análise')} size="sm" className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/20 rounded-lg">Em Análise</Button>
-                                                    <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Resolvido')} size="sm" className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/20 rounded-lg">Resolver</Button>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
+                                      <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Mensagem</label>
+                                        <textarea
+                                          value={newMessage[uid]?.body || ''}
+                                          onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], body: e.target.value, title: p[uid]?.title || '' } }))}
+                                          placeholder="Escreva o aviso para o aluno..."
+                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-24"
+                                        />
                                       </div>
-                                    )}
-
-                                    {/* FINANCEIRO sub-tab */}
-                                    {subTab === 'financeiro' && (
-                                      <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                          <input
-                                            type="text"
-                                            value={newInvoice[uid]?.description || ''}
-                                            onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, amount: p[uid]?.amount || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
-                                            placeholder="Descrição (ex: Mensalidade Jun/25)"
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all md:col-span-2"
-                                          />
-                                          <input
-                                            type="text"
-                                            value={newInvoice[uid]?.amount || ''}
-                                            onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], amount: e.target.value, description: p[uid]?.description || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
-                                            placeholder="Valor (R$ 450,00)"
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                          />
-                                          <input
-                                            type="date"
-                                            value={newInvoice[uid]?.due_date || ''}
-                                            onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], due_date: e.target.value, description: p[uid]?.description || '', amount: p[uid]?.amount || '', status: p[uid]?.status || 'Pendente' } }))}
-                                            className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
-                                          />
-                                        </div>
-                                        <Button onClick={() => handleAddInvoice(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                                          <Plus className="w-4 h-4 mr-2" /> Adicionar Fatura
-                                        </Button>
-                                        {invs.length > 0 && (
-                                          <div className="space-y-2 mt-2">
-                                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Faturas do Aluno</p>
-                                            {invs.map((inv: any) => (
-                                              <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
-                                                <div className="flex-1 min-w-0">
-                                                  <p className="text-sm font-bold text-white truncate">{inv.description}</p>
-                                                  <p className="text-xs text-gray-400">{inv.amount} · Vence {inv.due_date}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                  <select
-                                                    value={inv.status}
-                                                    onChange={e => handleUpdateInvoiceStatus(uid, inv.id, e.target.value)}
-                                                    className={`bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold appearance-none focus:outline-none ${inv.status === 'Pago' ? 'text-green-400' : inv.status === 'Pendente' ? 'text-yellow-400' : 'text-gray-400'}`}
-                                                  >
-                                                    <option className="bg-[#111]" value="Pendente">Pendente</option>
-                                                    <option className="bg-[#111]" value="Pago">Pago</option>
-                                                    <option className="bg-[#111]" value="A Vencer">A Vencer</option>
-                                                    <option className="bg-[#111]" value="Vencido">Vencido</option>
-                                                  </select>
-                                                  <button onClick={() => handleDeleteInvoice(uid, inv.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            ))}
+                                      <Button onClick={() => handleSendMessage(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                        Enviar Mensagem
+                                      </Button>
+                                    </div>
+                                    {msgs.length > 0 && (
+                                      <div className="space-y-2 mt-4">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Histórico de Mensagens</p>
+                                        {msgs.map((msg: any) => (
+                                          <div key={msg.id} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
+                                            <div className="flex-1">
+                                              <p className="text-sm font-bold text-white">{msg.title}</p>
+                                              <p className="text-xs text-gray-400 mt-1">{msg.body}</p>
+                                            </div>
+                                            <button onClick={() => handleDeleteStudentMessage(uid, msg.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
-                                        )}
+                                        ))}
                                       </div>
                                     )}
                                   </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
+                                )}
+
+                                {/* FINANCEIRO */}
+                                {subTab === 'financeiro' && (
+                                  <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                      <input
+                                        type="text"
+                                        value={newInvoice[uid]?.description || ''}
+                                        onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, amount: p[uid]?.amount || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
+                                        placeholder="Descrição (ex: Mensalidade Jun/25)"
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all md:col-span-2"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={newInvoice[uid]?.amount || ''}
+                                        onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], amount: e.target.value, description: p[uid]?.description || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
+                                        placeholder="Valor (R$ 450,00)"
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      />
+                                      <input
+                                        type="date"
+                                        value={newInvoice[uid]?.due_date || ''}
+                                        onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], due_date: e.target.value, description: p[uid]?.description || '', amount: p[uid]?.amount || '', status: p[uid]?.status || 'Pendente' } }))}
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      />
+                                    </div>
+                                    <Button onClick={() => handleAddInvoice(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                      <Plus className="w-4 h-4 mr-2" /> Adicionar Fatura
+                                    </Button>
+                                    {invs.length > 0 && (
+                                      <div className="space-y-2 mt-2">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Faturas do Aluno</p>
+                                        {invs.map((inv: any) => (
+                                          <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-bold text-white truncate">{inv.description}</p>
+                                              <p className="text-xs text-gray-400">{inv.amount} · Vence {inv.due_date}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <select
+                                                value={inv.status}
+                                                onChange={e => handleUpdateInvoiceStatus(uid, inv.id, e.target.value)}
+                                                className={`bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold appearance-none focus:outline-none ${inv.status === 'Pago' ? 'text-green-400' : inv.status === 'Pendente' ? 'text-yellow-400' : 'text-gray-400'}`}
+                                              >
+                                                <option className="bg-[#111]" value="Pendente">Pendente</option>
+                                                <option className="bg-[#111]" value="Pago">Pago</option>
+                                                <option className="bg-[#111]" value="A Vencer">A Vencer</option>
+                                                <option className="bg-[#111]" value="Vencido">Vencido</option>
+                                              </select>
+                                              <button onClick={() => handleDeleteInvoice(uid, inv.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* AGENDA */}
+                                {subTab === 'agenda' && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm text-gray-400">Adicione aulas e eventos à agenda do aluno. Ele verá no Portal do Aluno.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                      <input
+                                        type="text"
+                                        value={newAgendaItem[uid]?.title || ''}
+                                        onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
+                                        placeholder="Título (ex: Aula 12 — Lip-sync)"
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      />
+                                      <input
+                                        type="date"
+                                        value={newAgendaItem[uid]?.date || ''}
+                                        onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], date: e.target.value, title: p[uid]?.title || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      />
+                                      <input
+                                        type="time"
+                                        value={newAgendaItem[uid]?.time || ''}
+                                        onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], time: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      />
+                                      <select
+                                        value={newAgendaItem[uid]?.type || 'Aula'}
+                                        onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], type: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '' } }))}
+                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                      >
+                                        <option className="bg-[#111]" value="Aula">Aula</option>
+                                        <option className="bg-[#111]" value="Prova">Prova</option>
+                                        <option className="bg-[#111]" value="Banca">Banca</option>
+                                        <option className="bg-[#111]" value="Evento">Evento</option>
+                                      </select>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={newAgendaItem[uid]?.description || ''}
+                                      onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', type: p[uid]?.type || 'Aula' } }))}
+                                      placeholder="Descrição opcional"
+                                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                    />
+                                    <Button onClick={() => handleAddAgendaItem(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                      <Plus className="w-4 h-4 mr-2" /> Adicionar Evento
+                                    </Button>
+                                    {(studentAgenda[uid] || []).length > 0 && (
+                                      <div className="space-y-2 mt-2">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Agenda do Aluno</p>
+                                        {(studentAgenda[uid] || []).map((item: any) => (
+                                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                                            <div className="flex-1">
+                                              <p className="text-sm font-bold text-white">{item.title}</p>
+                                              <p className="text-xs text-gray-400">{item.date} às {item.time} · {item.type}</p>
+                                            </div>
+                                            <button onClick={() => handleDeleteAgendaItem(uid, item.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* SUPORTE */}
+                                {subTab === 'suporte' && (
+                                  <div className="space-y-4">
+                                    <p className="text-sm text-gray-400">Responda os chamados abertos por este aluno.</p>
+                                    {(studentSupport[uid] || []).length === 0 ? (
+                                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                                        <Headphones className="w-8 h-8 text-gray-600 mb-2" />
+                                        <p className="text-gray-500 text-sm">Nenhum chamado aberto por este aluno.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-4">
+                                        {(studentSupport[uid] || []).map((ticket: any) => (
+                                          <div key={ticket.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div>
+                                                <p className="font-bold text-white">{ticket.subject}</p>
+                                                <p className="text-sm text-gray-400 mt-1">{ticket.message}</p>
+                                              </div>
+                                              <span className={`px-2 py-1 rounded-full text-xs font-bold shrink-0 ${ ticket.status === 'Resolvido' ? 'bg-green-500/10 text-green-400' : ticket.status === 'Em Análise' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-blue-500/10 text-blue-400' }`}>{ticket.status}</span>
+                                            </div>
+                                            {ticket.admin_reply && (
+                                              <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                                                <p className="text-xs text-cyan-400 font-bold mb-1">Resposta enviada:</p>
+                                                <p className="text-xs text-gray-300">{ticket.admin_reply}</p>
+                                              </div>
+                                            )}
+                                            <div className="space-y-2">
+                                              <textarea
+                                                value={supportReply[ticket.id] || ''}
+                                                onChange={e => setSupportReply(p => ({ ...p, [ticket.id]: e.target.value }))}
+                                                placeholder="Escreva sua resposta..."
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-20"
+                                              />
+                                              <div className="flex gap-2">
+                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Em Análise')} size="sm" className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/20 rounded-lg">Em Análise</Button>
+                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Resolvido')} size="sm" className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/20 rounded-lg">Resolver</Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
                         );
-                      })
+                      })()
+                    ) : (
+                      /* ── STUDENT LIST ── */
+                      <motion.div
+                        key="list"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                      >
+                        {/* Header */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Alunos</h3>
+                            <p className="text-muted-foreground">Clique em um aluno para gerenciar seu portal completo.</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                              <input
+                                type="text"
+                                value={searchStudent}
+                                onChange={e => setSearchStudent(e.target.value)}
+                                placeholder="Buscar aluno..."
+                                className="bg-black/50 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors w-full md:w-64"
+                              />
+                            </div>
+                            <Button
+                              onClick={() => setIsCreatingStudent(v => !v)}
+                              className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover shrink-0"
+                            >
+                              <Plus className="w-4 h-4 mr-2" /> Novo Aluno
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Create Student Form */}
+                        <AnimatePresence>
+                          {isCreatingStudent && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <form onSubmit={handleCreateStudent} className="glass-panel p-8 rounded-3xl border-cyan-500/20 bg-cyan-500/5 space-y-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                    <GraduationCap className="w-4 h-4" />
+                                  </div>
+                                  <h4 className="text-lg font-bold text-white">Criar Conta de Aluno</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nome Completo</label>
+                                    <input type="text" value={newStudent.full_name} onChange={e => setNewStudent(p => ({ ...p, full_name: e.target.value }))} placeholder="Ana Silva" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">E-mail</label>
+                                    <input type="email" value={newStudent.email} onChange={e => setNewStudent(p => ({ ...p, email: e.target.value }))} placeholder="ana@email.com" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Senha de Acesso</label>
+                                    <input type="text" value={newStudent.password} onChange={e => setNewStudent(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required minLength={6} />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Módulo Inicial</label>
+                                    <select
+                                      value={newStudent.module_title}
+                                      onChange={e => {
+                                        const mod = draft.modules?.find((m: any) => m.title === e.target.value);
+                                        setNewStudent(p => ({ ...p, module_title: e.target.value, module_slug: mod?.slug || '' }));
+                                      }}
+                                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                      required
+                                    >
+                                      <option value="">Selecione um módulo</option>
+                                      {draft.modules?.map((m: any) => (
+                                        <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="flex gap-3">
+                                  <Button type="submit" disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                    {isLoading ? 'Criando...' : 'Criar Conta e Matricular'}
+                                  </Button>
+                                  <Button type="button" onClick={() => setIsCreatingStudent(false)} variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl">
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </form>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* Student Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {filteredStudents.length === 0 ? (
+                            <div className="sm:col-span-2 lg:col-span-3 glass-panel p-12 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
+                              <GraduationCap className="w-12 h-12 text-gray-600 mb-4" />
+                              <p className="text-gray-400 font-medium">Nenhum aluno encontrado.</p>
+                              <p className="text-gray-600 text-sm mt-1">Clique em "Novo Aluno" para criar a primeira conta.</p>
+                            </div>
+                          ) : (
+                            filteredStudents.map((student: any) => (
+                              <button
+                                key={student.id}
+                                onClick={() => {
+                                  handleLoadStudentPortalData(student.id);
+                                  handleLoadAgendaAndSupport(student.id);
+                                  setSelectedStudentId(student.id);
+                                }}
+                                className="glass-panel p-5 rounded-3xl border-white/5 hover:border-cyan-500/20 transition-all text-left group"
+                              >
+                                <div className="flex items-center gap-3 mb-4">
+                                  <img src={student.avatar} alt={student.name} className="w-12 h-12 rounded-full border border-white/10 shrink-0 object-cover" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-white truncate">{student.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{student.email}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    (student.status || 'Ativo') === 'Ativo' ? 'bg-green-500/10 text-green-400'
+                                    : student.status === 'Formado' ? 'bg-purple-500/10 text-purple-400'
+                                    : 'bg-red-500/10 text-red-400'
+                                  }`}>
+                                    {student.status || 'Ativo'}
+                                  </span>
+                                  <span className="text-xs text-gray-600 group-hover:text-cyan-400 transition-colors flex items-center gap-1">
+                                    Ver detalhes <ChevronRight className="w-3 h-3" />
+                                  </span>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 </motion.div>
               )}
 

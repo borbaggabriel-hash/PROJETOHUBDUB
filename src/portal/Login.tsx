@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mic, ArrowLeft, Mail, Lock } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { firebaseService } from '../services/firebaseService';
+import { firebaseService } from '../services/supabaseService';
 
 export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBack: () => void }) {
   const [email, setEmail] = useState('');
