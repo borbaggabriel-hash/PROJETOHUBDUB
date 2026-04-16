@@ -452,11 +452,11 @@ function App() {
                 <h1 className="text-4xl md:text-7xl font-black text-white leading-[1.1] mb-6 font-display tracking-tight">
                   A sua voz é o seu <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-blue-300 neon-text-blue">maior instrumento.</span>
                 </h1>
-                <p className="text-base md:text-xl text-gray-400 mb-8 leading-relaxed font-light px-4 md:px-0">
+                <p className="text-base md:text-xl text-gray-400 mb-8 leading-relaxed font-light">
                   A primeira escola de dublagem do Brasil com metodologia imersiva, plataforma usada por estúdios profissionais e professores que são referências no mercado.
                 </p>
                 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start px-6 md:px-0">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <Button onClick={() => handleEnroll()} className="bg-blue-600 hover:bg-blue-500 text-white text-base md:text-lg px-8 py-6 rounded-full font-bold shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all whimsy-hover group neon-glow-blue">
                     Comece sua jornada <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
@@ -569,7 +569,7 @@ function App() {
                   >
                     <button 
                       onClick={(e) => { e.stopPropagation(); setExpandedModule(null); }}
-                      className="absolute top-4 right-4 md:top-8 md:right-8 w-10 h-10 md:w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors z-20"
+                      className="absolute top-4 right-4 md:top-8 md:right-8 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-colors z-20"
                     >
                       <Zap className="w-5 h-5 md:w-6 h-6 rotate-45" />
                     </button>
@@ -779,7 +779,7 @@ function App() {
                       </h3>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                       {lessons.map((lesson: string, j: number) => (
                         <motion.div
                           key={j}
@@ -796,7 +796,7 @@ function App() {
                       ))}
                     </div>
 
-                    <div className="flex gap-3 mt-8 pt-8 border-t border-white/10">
+                    <div className="flex flex-wrap gap-3 mt-8 pt-8 border-t border-white/10">
                       {siteData.modules.map((mod: any, i: number) => (
                         <button
                           key={i}
@@ -872,9 +872,11 @@ function App() {
             <p className="text-lg md:text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-light px-6 md:px-0">
               As vagas para a próxima turma são limitadas para garantir a qualidade e atenção individual em estúdio.
             </p>
-            <Button onClick={() => handleEnroll()} className="bg-blue-600 hover:bg-blue-500 text-white text-lg md:text-xl px-10 md:px-12 py-6 md:py-8 rounded-full font-bold shadow-[0_0_40px_rgba(37,99,235,0.4)] transition-all whimsy-hover mx-auto flex items-center justify-center neon-glow-blue">
+            <div className="flex justify-center">
+            <Button onClick={() => handleEnroll()} className="bg-blue-600 hover:bg-blue-500 text-white text-lg md:text-xl px-10 md:px-12 py-6 md:py-8 rounded-full font-bold shadow-[0_0_40px_rgba(37,99,235,0.4)] transition-all whimsy-hover flex items-center justify-center neon-glow-blue">
               Garantir Minha Vaga Agora
             </Button>
+            </div>
           </div>
         </section>
       </main>
@@ -911,8 +913,8 @@ function App() {
           </div>
           
           <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/5 text-sm text-gray-500">
-            <p>© 2026 {siteData.settings?.siteName || 'THE HUB'}. Todos os direitos reservados.</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
+            <p className="text-center md:text-left">© 2026 {siteData.settings?.siteName || 'THE HUB'}. Todos os direitos reservados.</p>
+            <div className="flex flex-wrap gap-6 justify-center mt-4 md:mt-0">
               <a href="#" className="hover:text-white transition-colors">Termos de Uso</a>
               <a href="#" className="hover:text-white transition-colors">Privacidade</a>
               <button onClick={() => setIsSecretariaOpen(true)} className="hover:text-white transition-colors">Secretaria</button>

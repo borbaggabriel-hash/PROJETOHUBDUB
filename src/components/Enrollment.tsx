@@ -63,9 +63,9 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
             {/* Close Button */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 md:top-6 md:right-6 p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-colors z-50"
+              className="absolute top-4 right-4 md:top-6 md:right-6 p-2 md:p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/10 transition-colors z-50"
             >
-              <X className="w-5 h-5 md:w-6 h-6" />
+              <X className="w-5 h-5 md:w-6 md:h-6" />
             </button>
 
             <div className="grid md:grid-cols-5 h-full overflow-y-auto custom-scrollbar">
@@ -82,8 +82,8 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
                 </div>
 
                 <div className="relative z-10 flex flex-col items-center md:items-start">
-                  <div className="w-10 h-10 md:w-12 h-12 rounded-xl md:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 md:mb-8 border border-white/20">
-                    <Mic className="w-5 h-5 md:w-6 h-6 text-white" />
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 md:mb-8 border border-white/20">
+                    <Mic className="w-5 h-5 md:w-6 md:h-6 text-white" />
                   </div>
                   <h2 className="text-2xl md:text-4xl font-black font-display leading-[1.1] mb-4 md:mb-6 tracking-tight">
                     Sua voz, <br/>
@@ -96,14 +96,14 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
                 
                 <div className="relative z-10 flex flex-col items-center md:items-start space-y-4 md:space-y-6 mt-8 md:mt-12 hidden sm:flex">
                   <div className="flex items-center gap-3 md:gap-4 group">
-                    <div className="w-8 h-8 md:w-10 h-10 rounded-lg md:rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:bg-blue-400 group-hover:text-black transition-all duration-300">
-                      <CheckCircle2 className="w-4 h-4 md:w-5 h-5" />
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:bg-blue-400 group-hover:text-black transition-all duration-300">
+                      <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">Consultoria de Carreira</span>
                   </div>
                   <div className="flex items-center gap-3 md:gap-4 group">
-                    <div className="w-8 h-8 md:w-10 h-10 rounded-lg md:rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:bg-blue-400 group-hover:text-black transition-all duration-300">
-                      <CheckCircle2 className="w-4 h-4 md:w-5 h-5" />
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10 group-hover:bg-blue-400 group-hover:text-black transition-all duration-300">
+                      <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <span className="text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">Acesso ao Portal</span>
                   </div>
