@@ -8,7 +8,8 @@ import {
   CheckCircle, MessageSquare,
   ExternalLink, PartyPopper,
   Star, BookOpen, Video, Lock,
-  PlayCircle, Trophy, Trash2, Send, CheckCheck
+  PlayCircle, Trophy, Trash2, Send, CheckCheck,
+  User, Camera, TrendingUp
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { firebaseService } from '../services/firebaseService';
@@ -33,33 +34,36 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
   const unreadCount = messages.filter((m: any) => !m.read).length;
 
   const menuItems = [
-    { id: 'dashboard', label: 'Painel Geral', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
     { id: 'cursos', label: 'Meus Cursos', icon: BookOpen },
-    { id: 'mensagens', label: 'Mensagens', icon: MessageSquare, badge: unreadCount },
-    { id: 'conquistas', label: 'Conquistas', icon: Trophy },
-    { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
+    { id: 'mensagens', label: 'Mensagens', icon: MessageSquare, badge: unreadCount },
+    { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
+    { id: 'conquistas', label: 'Conquistas', icon: Trophy },
     { id: 'suporte', label: 'Suporte', icon: HelpCircle },
+    { id: 'perfil', label: 'Meu Perfil', icon: User },
   ];
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} />;
+        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} />;
       case 'cursos':
         return <CursosView data={data} studentData={studentData} />;
       case 'mensagens':
         return <MensagensView messages={messages} setMessages={setMessages} uid={uid} />;
       case 'conquistas':
-        return <ConquistasView />;
+        return <ConquistasView studentData={studentData} />;
       case 'financeiro':
         return <FinanceiroView invoices={invoices} setInvoices={setInvoices} onPay={() => { setIsCelebrating(true); setTimeout(() => setIsCelebrating(false), 3000); }} />;
       case 'agenda':
         return <AgendaView agendaItems={agendaItems} />;
       case 'suporte':
         return <SuporteView uid={uid} profile={profile} />;
+      case 'perfil':
+        return <PerfilView uid={uid} profile={profile} />;
       default:
-        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} />;
+        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} />;
     }
   };
 
@@ -67,24 +71,25 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
     <div className="min-h-screen bg-[#050505] flex text-foreground font-sans">
       {/* Sidebar */}
       <aside className="w-72 bg-[#0a0a0a] border-r border-white/5 flex flex-col hidden md:flex relative z-20 shadow-2xl">
-        <div className="p-8 flex items-center gap-3 cursor-pointer group" onClick={onHome}>
+        <div className="p-6 flex items-center gap-3 cursor-pointer group border-b border-white/5" onClick={onHome}>
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
             <Mic className="w-5 h-5 text-white" />
           </div>
           <div>
             <span className="font-black text-xl tracking-tighter font-display text-white block leading-none">THE HUB</span>
-            <span className="font-bold text-sm tracking-widest text-cyan-400 uppercase">Portal do Aluno</span>
+            <span className="font-bold text-xs tracking-widest text-cyan-400 uppercase">Portal do Aluno</span>
           </div>
         </div>
 
-        <div className="px-6 mb-8">
-          <div className="glass-panel p-4 rounded-2xl border-white/5 flex items-center gap-4">
-            <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-12 h-12 rounded-full border-2 border-cyan-500/30" />
-            <div>
-              <p className="text-sm font-bold text-white">{profile?.full_name || 'Aluno'}</p>
+        <div className="px-5 py-4 border-b border-white/5">
+          <button onClick={() => setActiveTab('perfil')} className="w-full glass-panel p-3 rounded-2xl border-white/5 flex items-center gap-3 hover:border-cyan-500/30 transition-colors text-left">
+            <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-10 h-10 rounded-full border-2 border-cyan-500/30 shrink-0 object-cover" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{profile?.full_name || 'Aluno'}</p>
               <p className="text-xs text-cyan-400">Aluno Ativo</p>
             </div>
-          </div>
+            <ChevronRight className="w-4 h-4 text-gray-600 shrink-0" />
+          </button>
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
@@ -151,22 +156,30 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
         </AnimatePresence>
 
         {/* Mobile Header */}
-        <header className="md:hidden h-20 border-b border-white/5 bg-black/20 backdrop-blur-md flex items-center justify-between px-6 relative z-10">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={onHome}>
-            <Mic className="w-6 h-6 text-cyan-400" />
-            <span className="font-black text-lg font-display text-white">THE HUB</span>
-          </div>
-          <button onClick={onLogout} className="p-2 text-muted-foreground hover:text-white">
-            <LogOut className="w-5 h-5" />
+        <header className="md:hidden h-16 border-b border-white/5 bg-black/30 backdrop-blur-md flex items-center justify-between px-4 relative z-10 shrink-0">
+          <button onClick={onHome} className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+              <Mic className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-black text-base font-display text-white">THE HUB</span>
           </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setActiveTab('mensagens')} className="relative p-2 text-muted-foreground hover:text-white">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-500 rounded-full"></span>}
+            </button>
+            <button onClick={() => setActiveTab('perfil')}>
+              <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-8 h-8 rounded-full border-2 border-cyan-500/30 object-cover" />
+            </button>
+          </div>
         </header>
 
         {/* Topbar Desktop */}
-        <header className="hidden md:flex h-20 border-b border-white/5 bg-black/20 backdrop-blur-md items-center justify-between px-10 relative z-10">
+        <header className="hidden md:flex h-18 border-b border-white/5 bg-black/20 backdrop-blur-md items-center justify-between px-10 relative z-10 shrink-0 py-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Portal do Aluno</span>
             <ChevronRight className="w-4 h-4" />
-            <span className="text-white capitalize">{activeTab}</span>
+            <span className="text-white capitalize">{menuItems.find(m => m.id === activeTab)?.label || activeTab}</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -187,7 +200,7 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 relative z-10">
+        <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-24 md:pb-10 relative z-10">
           <div className="max-w-5xl mx-auto">
             <AnimatePresence mode="wait">
               <motion.div
@@ -203,11 +216,55 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10">
+        <div className="flex items-stretch justify-around px-1 py-1">
+          {menuItems.slice(0, 4).map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all relative ${isActive ? 'text-cyan-400' : 'text-gray-500'}`}
+              >
+                {isActive && (
+                  <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-cyan-500/10 rounded-xl" transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+                )}
+                <div className="relative">
+                  <Icon className="w-5 h-5 relative z-10" />
+                  {item.badge != null && item.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-cyan-500 text-black text-[9px] font-black flex items-center justify-center z-20">{item.badge}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold relative z-10 leading-none">{item.label.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setActiveTab('financeiro')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all relative ${activeTab === 'financeiro' ? 'text-cyan-400' : 'text-gray-500'}`}
+          >
+            {activeTab === 'financeiro' && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-cyan-500/10 rounded-xl" transition={{ type: 'spring', stiffness: 300, damping: 30 }} />}
+            <CreditCard className="w-5 h-5 relative z-10" />
+            <span className="text-[10px] font-bold relative z-10 leading-none">Financeiro</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('perfil')}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all relative ${activeTab === 'perfil' ? 'text-cyan-400' : 'text-gray-500'}`}
+          >
+            {activeTab === 'perfil' && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-cyan-500/10 rounded-xl" transition={{ type: 'spring', stiffness: 300, damping: 30 }} />}
+            <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-5 h-5 rounded-full border border-cyan-500/40 relative z-10 object-cover" />
+            <span className="text-[10px] font-bold relative z-10 leading-none">Perfil</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
 
-function DashboardView({ setActiveTab, data, studentData, messages, invoices }: any) {
+function DashboardView({ setActiveTab, data, studentData, messages, invoices, agendaItems }: any) {
   const profile = studentData?.profile;
   const enrollments = studentData?.enrollments || [];
   const totalProgress = enrollments.length > 0
@@ -216,53 +273,151 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices }: 
   const mainEnrollment = enrollments[0];
   const unreadMessages = (messages || []).filter((m: any) => !m.read).length;
   const pendingInvoices = (invoices || []).filter((inv: any) => inv.status === 'Pendente').length;
+  const today = new Date().toISOString().split('T')[0];
+  const nextEvent = (agendaItems || []).find((i: any) => i.date >= today);
+
+  const activeModule = data?.modules?.find((m: any) => m.title === mainEnrollment?.module || m.slug === mainEnrollment?.module_slug);
+  const lessons = activeModule?.details?.lessons || [];
+  const completedLessons = mainEnrollment ? Math.floor((mainEnrollment.progress || 0) / (100 / Math.max(lessons.length, 1))) : 0;
+  const nextLesson = lessons[completedLessons];
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
   return (
-    <div className="space-y-8">
-      <div className="glass-panel p-8 md:p-10 rounded-[2rem] border-white/5 bg-gradient-to-br from-blue-900/20 to-cyan-900/10 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div>
-            <h2 className="text-3xl md:text-4xl font-black text-white font-display mb-2">Bem-vindo de volta, {profile?.full_name?.split(' ')[0] || 'Aluno'}!</h2>
-            <p className="text-blue-200/70 text-lg">Você está indo muito bem. Continue assim!</p>
+    <div className="space-y-5">
+      {/* Welcome Banner */}
+      <div className="glass-panel p-6 md:p-8 rounded-[2rem] border-white/5 bg-gradient-to-br from-blue-900/20 to-cyan-900/10 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex-1">
+            <p className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">{greeting},</p>
+            <h2 className="text-2xl md:text-3xl font-black text-white font-display mb-2">
+              {profile?.full_name?.split(' ')[0] || 'Aluno'} 👋
+            </h2>
+            <p className="text-gray-400 text-sm md:text-base">
+              {totalProgress === 0 ? 'Pronto para começar sua jornada no mundo da dublagem?' :
+               totalProgress === 100 ? '🎉 Você concluiu sua formação! Parabéns!' :
+               `Você está ${totalProgress}% do caminho. Continue assim!`}
+            </p>
           </div>
-          <div className="flex items-center gap-6 bg-black/40 p-6 rounded-2xl border border-white/5 backdrop-blur-md">
-            <div className="relative w-20 h-20 flex items-center justify-center">
+          <div className="flex items-center gap-4 bg-black/40 px-5 py-4 rounded-2xl border border-white/5 backdrop-blur-md shrink-0">
+            <div className="relative w-16 h-16 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#22d3ee" strokeWidth="8" strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * totalProgress / 100)} strokeLinecap="round" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#22d3ee" strokeWidth="10"
+                  strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * totalProgress / 100)} strokeLinecap="round" />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold text-white">{totalProgress}%</span>
+                <span className="text-base font-black text-white">{totalProgress}%</span>
               </div>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-1">Progresso Geral</p>
-              <p className="text-white font-bold">{mainEnrollment?.module || 'Nenhuma matrícula'}</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Progresso</p>
+              <p className="text-white font-bold text-sm">{mainEnrollment?.module || 'Sem matrícula'}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{enrollments.length} módulo(s) ativo(s)</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <button onClick={() => setActiveTab('cursos')} className="glass-panel p-6 rounded-2xl border-white/5 flex items-center gap-4 hover:border-cyan-500/30 transition-colors text-left">
-          <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0"><BookOpen className="w-6 h-6" /></div>
-          <div><p className="text-xs text-gray-400 uppercase tracking-wider">Módulo Atual</p><p className="font-bold text-white truncate">{mainEnrollment?.module || '—'}</p></div>
-        </button>
-        <button onClick={() => setActiveTab('mensagens')} className="glass-panel p-6 rounded-2xl border-white/5 flex items-center gap-4 hover:border-cyan-500/30 transition-colors text-left">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0 relative">
-            <MessageSquare className="w-6 h-6" />
-            {unreadMessages > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 text-black text-xs font-black flex items-center justify-center">{unreadMessages}</span>}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <button onClick={() => setActiveTab('cursos')}
+          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-cyan-500/30 transition-colors text-left">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+            <BookOpen className="w-4 h-4" />
           </div>
-          <div><p className="text-xs text-gray-400 uppercase tracking-wider">Mensagens</p><p className="font-bold text-white">{unreadMessages > 0 ? `${unreadMessages} não lida(s)` : 'Sem novas'}</p></div>
-        </button>
-        <button onClick={() => setActiveTab('financeiro')} className="glass-panel p-6 rounded-2xl border-white/5 flex items-center gap-4 hover:border-cyan-500/30 transition-colors text-left">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${pendingInvoices > 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
-            <CreditCard className="w-6 h-6" />
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Aulas Concluídas</p>
+            <p className="font-bold text-white text-lg leading-none">{completedLessons}<span className="text-gray-500 text-sm font-normal">/{lessons.length || '–'}</span></p>
           </div>
-          <div><p className="text-xs text-gray-400 uppercase tracking-wider">Financeiro</p><p className="font-bold text-white">{pendingInvoices > 0 ? `${pendingInvoices} pendente(s)` : 'Em dia'}</p></div>
+        </button>
+
+        <button onClick={() => setActiveTab('mensagens')}
+          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-blue-500/30 transition-colors text-left relative">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+            <MessageSquare className="w-4 h-4" />
+            {unreadMessages > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-cyan-500 rounded-full" />}
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Mensagens</p>
+            <p className={`font-bold text-lg leading-none ${unreadMessages > 0 ? 'text-cyan-400' : 'text-white'}`}>
+              {unreadMessages > 0 ? `${unreadMessages} nova${unreadMessages > 1 ? 's' : ''}` : 'Em dia'}
+            </p>
+          </div>
+        </button>
+
+        <button onClick={() => setActiveTab('financeiro')}
+          className={`glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 transition-colors text-left ${pendingInvoices > 0 ? 'hover:border-yellow-500/30' : 'hover:border-green-500/30'}`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${pendingInvoices > 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
+            <CreditCard className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Financeiro</p>
+            <p className={`font-bold text-lg leading-none ${pendingInvoices > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+              {pendingInvoices > 0 ? `${pendingInvoices} pendente${pendingInvoices > 1 ? 's' : ''}` : 'Em dia'}
+            </p>
+          </div>
+        </button>
+
+        <button onClick={() => setActiveTab('agenda')}
+          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-purple-500/30 transition-colors text-left">
+          <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Próximo Evento</p>
+            <p className="font-bold text-white text-sm leading-tight truncate">{nextEvent ? nextEvent.title : 'Nenhum'}</p>
+            {nextEvent && <p className="text-xs text-purple-400 mt-0.5">{new Date(nextEvent.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</p>}
+          </div>
         </button>
       </div>
+
+      {/* Next Lesson CTA */}
+      {nextLesson && (
+        <button onClick={() => setActiveTab('cursos')}
+          className="w-full glass-panel p-5 rounded-2xl border-white/5 hover:border-cyan-500/30 transition-all text-left flex items-center justify-between gap-4 group">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0 group-hover:scale-110 transition-transform">
+              <PlayCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-cyan-400 font-bold uppercase tracking-wider mb-0.5">Continuar de onde parou</p>
+              <p className="font-bold text-white truncate">Aula {completedLessons + 1}: {nextLesson}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{activeModule?.title}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-cyan-400 shrink-0">
+            <span className="text-sm font-bold hidden sm:block">Continuar</span>
+            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </button>
+      )}
+
+      {/* Recent Messages */}
+      {messages.length > 0 && (
+        <div className="glass-panel p-5 rounded-2xl border-white/5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-white text-sm">Mensagens Recentes</h3>
+            <button onClick={() => setActiveTab('mensagens')} className="text-xs text-cyan-400 hover:underline font-bold">Ver todas</button>
+          </div>
+          <div className="space-y-2">
+            {messages.slice(0, 3).map((msg: any) => (
+              <div key={msg.id} className={`flex items-start gap-3 p-3 rounded-xl ${!msg.read ? 'bg-cyan-500/5 border border-cyan-500/10' : 'bg-white/[0.02]'}`}>
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
+                  <Bell className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{msg.title}</p>
+                  <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{msg.body}</p>
+                </div>
+                {!msg.read && <span className="w-2 h-2 bg-cyan-500 rounded-full shrink-0 mt-2" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -382,37 +537,81 @@ function MensagensView({ messages, setMessages, uid }: any) {
   );
 }
 
-function ConquistasView() {
+function ConquistasView({ studentData }: any) {
+  const enrollments = studentData?.enrollments || [];
+  const totalProgress = enrollments.length > 0
+    ? Math.round(enrollments.reduce((acc: number, curr: any) => acc + (curr.progress || 0), 0) / enrollments.length)
+    : 0;
+  const hasEnrollment = enrollments.length > 0;
+  const anyModuleDone = enrollments.some((e: any) => e.progress === 100);
+  const allDone = enrollments.length >= 2 && enrollments.every((e: any) => e.progress === 100);
+
   const badges = [
     { id: 1, title: 'Primeiro Acesso', desc: 'Entrou no portal pela primeira vez', icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', unlocked: true },
-    { id: 2, title: 'Voz Aquecida', desc: 'Completou exercícios de respiração', icon: Mic, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', unlocked: true },
-    { id: 3, title: 'Módulo 1 Concluído', desc: 'Finalizou o módulo iniciante', icon: Award, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', unlocked: false },
-    { id: 4, title: 'Mestre Lip-Sync', desc: 'Acertou 90% no exercício de sync', icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500/30', unlocked: false },
-    { id: 5, title: 'Ator de Voz', desc: 'Gravou o primeiro personagem', icon: Video, color: 'text-pink-400', bg: 'bg-pink-500/20', border: 'border-pink-500/30', unlocked: false },
-    { id: 6, title: 'Formação Completa', desc: 'Concluiu todo o curso', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500/30', unlocked: false },
+    { id: 2, title: 'Matriculado!', desc: 'Realizou a primeira matrícula na escola', icon: Award, color: 'text-cyan-400', bg: 'bg-cyan-500/20', border: 'border-cyan-500/30', unlocked: hasEnrollment },
+    { id: 3, title: 'Voz em Treinamento', desc: 'Atingiu 25% de progresso no módulo', icon: Mic, color: 'text-blue-400', bg: 'bg-blue-500/20', border: 'border-blue-500/30', unlocked: totalProgress >= 25 },
+    { id: 4, title: 'Na Metade da Jornada', desc: 'Atingiu 50% de progresso no módulo', icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/20', border: 'border-purple-500/30', unlocked: totalProgress >= 50 },
+    { id: 5, title: 'Módulo Concluído', desc: 'Finalizou um módulo completo', icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/20', border: 'border-green-500/30', unlocked: anyModuleDone },
+    { id: 6, title: 'Formação Completa', desc: 'Concluiu toda a formação no THE HUB', icon: Trophy, color: 'text-orange-400', bg: 'bg-orange-500/20', border: 'border-orange-500/30', unlocked: allDone },
   ];
+
+  const unlockedCount = badges.filter(b => b.unlocked).length;
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-black text-white mb-2 font-display">Conquistas</h2>
-        <p className="text-muted-foreground">Desbloqueie medalhas ao progredir no curso e completar desafios.</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-black text-white mb-1 font-display">Conquistas</h2>
+          <p className="text-muted-foreground text-sm">Desbloqueie medalhas ao progredir no curso.</p>
+        </div>
+        <div className="glass-panel px-4 py-3 rounded-2xl border-white/5 flex items-center gap-2.5">
+          <Trophy className="w-5 h-5 text-yellow-400" />
+          <span className="font-black text-white">{unlockedCount}</span>
+          <span className="text-gray-400 text-sm">/ {badges.length} conquistadas</span>
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <div className="glass-panel p-4 rounded-2xl border-white/5">
+        <div className="flex justify-between text-xs mb-2">
+          <span className="text-gray-400 font-medium">Progresso das conquistas</span>
+          <span className="text-white font-bold">{Math.round(unlockedCount / badges.length * 100)}%</span>
+        </div>
+        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${(unlockedCount / badges.length) * 100}%` }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-400"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {badges.map((badge) => {
           const Icon = badge.icon;
           return (
-            <div key={badge.id} className={`glass-panel p-6 rounded-3xl border-white/5 flex flex-col items-center text-center transition-all ${badge.unlocked ? 'hover:scale-105' : 'opacity-50 grayscale'}`}>
-              <div className={`w-20 h-20 rounded-full ${badge.bg} border ${badge.border} flex items-center justify-center ${badge.color} mb-4 shadow-lg`}>
-                <Icon className="w-10 h-10" />
+            <motion.div
+              key={badge.id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: badge.id * 0.05 }}
+              className={`glass-panel p-6 rounded-3xl border-white/5 flex flex-col items-center text-center transition-all ${badge.unlocked ? 'hover:scale-[1.02] hover:border-white/10' : 'opacity-40 grayscale'}`}
+            >
+              <div className={`w-16 h-16 rounded-full ${badge.bg} border ${badge.border} flex items-center justify-center ${badge.color} mb-4 shadow-lg`}>
+                <Icon className="w-8 h-8" />
               </div>
-              <h4 className="text-lg font-bold text-white mb-1">{badge.title}</h4>
-              <p className="text-sm text-muted-foreground">{badge.desc}</p>
-              {!badge.unlocked && (
-                <div className="mt-4 px-3 py-1 rounded-full bg-white/10 text-xs font-medium text-gray-400 flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Bloqueado
+              <h4 className="text-base font-bold text-white mb-1">{badge.title}</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">{badge.desc}</p>
+              {badge.unlocked ? (
+                <div className="mt-4 px-3 py-1 rounded-full bg-green-500/10 text-xs font-bold text-green-400 flex items-center gap-1.5 border border-green-500/20">
+                  <CheckCircle className="w-3 h-3" /> Conquistada
+                </div>
+              ) : (
+                <div className="mt-4 px-3 py-1 rounded-full bg-white/5 text-xs font-medium text-gray-500 flex items-center gap-1 border border-white/10">
+                  <Lock className="w-3 h-3" /> Bloqueada
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -682,6 +881,131 @@ function SuporteView({ uid, profile }: { uid: string; profile: any }) {
             </div>
             <ExternalLink className="w-5 h-5 text-gray-500 ml-auto group-hover:text-cyan-400 transition-colors" />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PerfilView({ uid, profile }: { uid: string; profile: any }) {
+  const [form, setForm] = useState({
+    full_name: profile?.full_name || '',
+    avatar_url: profile?.avatar_url || '',
+    phone: profile?.phone || '',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      await firebaseService.updateStudentProfile(uid, form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at?.seconds ? profile.created_at.seconds * 1000 : profile.created_at)
+        .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-black text-white mb-1 font-display">Meu Perfil</h2>
+        <p className="text-muted-foreground text-sm">Gerencie suas informações pessoais.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Avatar Card */}
+        <div className="glass-panel p-8 rounded-3xl border-white/5 flex flex-col items-center text-center">
+          <div className="relative mb-5">
+            <img
+              src={form.avatar_url || `https://i.pravatar.cc/150?u=${uid}`}
+              alt="Avatar"
+              className="w-24 h-24 rounded-full border-4 border-cyan-500/30 object-cover"
+            />
+            <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-cyan-500 border-2 border-[#0a0a0a] flex items-center justify-center">
+              <Camera className="w-4 h-4 text-black" />
+            </div>
+          </div>
+          <h3 className="text-lg font-bold text-white mb-0.5">{form.full_name || 'Aluno'}</h3>
+          <p className="text-sm text-cyan-400 mb-1">Aluno Ativo</p>
+          <p className="text-xs text-gray-500">{profile?.email || '—'}</p>
+          <div className="w-full mt-6 pt-5 border-t border-white/5 space-y-3 text-left">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Status</span>
+              <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">Ativo</span>
+            </div>
+            {memberSince && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">Membro desde</span>
+                <span className="text-white font-medium text-xs capitalize">{memberSince}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Edit Form */}
+        <div className="md:col-span-2 glass-panel p-6 md:p-8 rounded-3xl border-white/5">
+          <h3 className="text-lg font-bold text-white mb-6">Editar Informações</h3>
+          <form onSubmit={handleSave} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nome Completo</label>
+              <input
+                type="text"
+                value={form.full_name}
+                onChange={e => setForm({ ...form, full_name: e.target.value })}
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                placeholder="Seu nome completo"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">URL da Foto de Perfil</label>
+              <input
+                type="url"
+                value={form.avatar_url}
+                onChange={e => setForm({ ...form, avatar_url: e.target.value })}
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                placeholder="https://..."
+              />
+              <p className="text-xs text-gray-600 mt-1.5">Cole o link de uma imagem pública (ex: imgur, gravatar)</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">WhatsApp / Telefone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={e => setForm({ ...form, phone: e.target.value })}
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">E-mail</label>
+              <input
+                type="email"
+                value={profile?.email || ''}
+                disabled
+                className="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-600 mt-1.5">O e-mail não pode ser alterado por aqui</p>
+            </div>
+            <div className="pt-2">
+              <Button type="submit" disabled={isSaving} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl py-4 whimsy-hover">
+                {saved
+                  ? <><CheckCircle className="w-4 h-4 mr-2 inline" /> Salvo com sucesso!</>
+                  : isSaving ? 'Salvando...'
+                  : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

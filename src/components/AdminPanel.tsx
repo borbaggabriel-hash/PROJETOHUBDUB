@@ -8,7 +8,8 @@ import {
   MoreVertical, Edit3, Shield, Database, Bell,
   MessageSquare, ChevronDown, CheckCircle2, XCircle,
   AlertCircle, ChevronRight, ClipboardList, Award,
-  HelpCircle, CreditCard, Headphones, Calendar
+  HelpCircle, CreditCard, Headphones, Calendar,
+  Megaphone, Send, Radio
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -39,6 +40,10 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const [studentSupport, setStudentSupport] = useState<Record<string, any[]>>({});
   const [allSupportTickets, setAllSupportTickets] = useState<any[]>([]);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastBody, setBroadcastBody] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastSent, setBroadcastSent] = useState(false);
 
   const handleSeedDatabase = async () => {
     const confirmed = window.confirm(
@@ -86,12 +91,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const loadAdminData = async () => {
     setIsLoading(true);
     try {
-      const [students, enrollments, activity, siteData] = await Promise.all([
+      const [students, enrollments, activity, siteData, tickets] = await Promise.all([
         firebaseService.getAllStudents(),
         firebaseService.getAllEnrollments(),
         firebaseService.getAllActivity(),
-        firebaseService.getSiteData()
+        firebaseService.getSiteData(),
+        firebaseService.getAllSupportTickets()
       ]);
+      setAllSupportTickets((tickets as any[]) || []);
 
       setDraft((prev: any) => ({
         ...prev,
@@ -501,6 +508,28 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     finally { setIsLoading(false); }
   };
 
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) { toast.error('Preencha título e mensagem.'); return; }
+    const students = draft.students || [];
+    if (students.length === 0) { toast.error('Nenhum aluno cadastrado.'); return; }
+    setIsSendingBroadcast(true);
+    try {
+      await Promise.all(students.map((s: any) =>
+        firebaseService.createStudentMessage(s.id, { title: broadcastTitle, body: broadcastBody })
+      ));
+      setBroadcastTitle('');
+      setBroadcastBody('');
+      setBroadcastSent(true);
+      setTimeout(() => setBroadcastSent(false), 4000);
+      toast.success(`Comunicado enviado para ${students.length} aluno(s).`);
+    } catch {
+      toast.error('Erro ao enviar comunicado.');
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   const handleSaveStudentProgress = async (uid: string) => {
     const prog = studentProgress[uid];
     if (!prog) return;
@@ -526,6 +555,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'enrollments', label: 'Matrículas', icon: ClipboardList },
     { id: 'students', label: 'Alunos', icon: GraduationCap },
+    { id: 'comunicados', label: 'Comunicados', icon: Megaphone },
     { id: 'teachers', label: 'Professores', icon: Users },
     { id: 'modules', label: 'Módulos', icon: BookOpen },
     { id: 'learnings', label: 'Aprendizados', icon: Award },
@@ -533,7 +563,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     { id: 'faqs', label: 'FAQs', icon: HelpCircle },
     { id: 'banners', label: 'Banners', icon: ImageIcon },
     { id: 'suporte', label: 'Suporte', icon: Headphones },
-  { id: 'settings', label: 'Configurações', icon: Settings },
+    { id: 'settings', label: 'Configurações', icon: Settings },
   ];
 
   if (!auth) {
@@ -740,8 +770,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                     <p className="text-muted-foreground">Métricas e status atual da sua plataforma de dublagem.</p>
                   </div>
                   
+                  {(() => {
+                    const pendingEnrollments = (draft.enrollments || []).filter((e: any) => e.status === 'Pendente' || !e.status).length;
+                    const openTickets = allSupportTickets.filter((t: any) => t.status !== 'Resolvido').length;
+                    const activeStudents = (draft.students || []).filter((s: any) => s.status !== 'inativo').length;
+                    return (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group">
+                    <button onClick={() => setActiveTab('students')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-blue-500/20 transition-colors">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors"></div>
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
@@ -752,28 +787,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <h4 className="text-3xl font-bold text-white">{draft.students?.length || 0}</h4>
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-green-400 font-medium">
-                        <TrendingUp className="w-3 h-3 mr-1" /> +12% este mês
+                      <div className="flex items-center text-xs text-blue-400 font-medium">
+                        <Activity className="w-3 h-3 mr-1" /> {activeStudents} ativo(s)
                       </div>
-                    </div>
-                    
-                    <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors"></div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                          <Users className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground font-medium">Professores Ativos</p>
-                          <h4 className="text-3xl font-bold text-white">{draft.teachers?.length || 0}</h4>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-xs text-muted-foreground font-medium">
-                        Equipe completa
-                      </div>
-                    </div>
-                    
-                    <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group">
+                    </button>
+
+                    <button onClick={() => setActiveTab('enrollments')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-cyan-500/20 transition-colors">
                       <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors"></div>
                       <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
@@ -784,27 +803,45 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <h4 className="text-3xl font-bold text-white">{draft.enrollments?.length || 0}</h4>
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-cyan-400 font-medium">
-                        Aguardando contato
+                      <div className={`flex items-center text-xs font-medium ${pendingEnrollments > 0 ? 'text-yellow-400' : 'text-cyan-400'}`}>
+                        <AlertCircle className="w-3 h-3 mr-1" /> {pendingEnrollments > 0 ? `${pendingEnrollments} pendente(s)` : 'Todas processadas'}
                       </div>
-                    </div>
-                    
-                    <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-colors"></div>
+                    </button>
+
+                    <button onClick={() => setActiveTab('suporte')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-orange-500/20 transition-colors">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-colors"></div>
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center text-green-400">
-                          <Activity className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-400">
+                          <Headphones className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground font-medium">Status do Sistema</p>
-                          <h4 className="text-xl font-bold text-white mt-1">Online</h4>
+                          <p className="text-sm text-muted-foreground font-medium">Tickets Abertos</p>
+                          <h4 className="text-3xl font-bold text-white">{openTickets}</h4>
                         </div>
                       </div>
-                      <div className="flex items-center text-xs text-green-400 font-medium">
-                        Todos os serviços operantes
+                      <div className={`flex items-center text-xs font-medium ${openTickets > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                        {openTickets > 0 ? <><AlertCircle className="w-3 h-3 mr-1" /> Aguardando resposta</> : <><CheckCircle2 className="w-3 h-3 mr-1" /> Tudo resolvido</>}
                       </div>
-                    </div>
+                    </button>
+
+                    <button onClick={() => setActiveTab('comunicados')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-purple-500/20 transition-colors">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors"></div>
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                          <Megaphone className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground font-medium">Enviar Comunicado</p>
+                          <h4 className="text-lg font-bold text-white mt-1">Todos os alunos</h4>
+                        </div>
+                      </div>
+                      <div className="flex items-center text-xs text-purple-400 font-medium">
+                        <Radio className="w-3 h-3 mr-1" /> {draft.students?.length || 0} destinatário(s)
+                      </div>
+                    </button>
                   </div>
+                    );
+                  })()}
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5">
@@ -1979,6 +2016,106 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       <Database className="w-4 h-4" />
                       {isSeedingDb ? 'Inicializando...' : 'Inicializar com Currículo Padrão'}
                     </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* COMUNICADOS TAB */}
+              {activeTab === 'comunicados' && (
+                <motion.div
+                  key="comunicados"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-8"
+                >
+                  <div>
+                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Comunicados</h3>
+                    <p className="text-muted-foreground">Envie uma mensagem para todos os alunos de uma vez.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Broadcast Form */}
+                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                          <Megaphone className="w-5 h-5" />
+                        </div>
+                        <h4 className="text-lg font-bold text-white">Novo Comunicado</h4>
+                      </div>
+
+                      {broadcastSent && (
+                        <div className="mb-6 p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
+                          <p className="text-green-400 font-bold text-sm">Comunicado enviado com sucesso para todos os alunos!</p>
+                        </div>
+                      )}
+
+                      <form onSubmit={handleBroadcast} className="space-y-5">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Título</label>
+                          <input
+                            type="text"
+                            value={broadcastTitle}
+                            onChange={e => setBroadcastTitle(e.target.value)}
+                            placeholder="Ex: Aula especial esta semana!"
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Mensagem</label>
+                          <textarea
+                            value={broadcastBody}
+                            onChange={e => setBroadcastBody(e.target.value)}
+                            placeholder="Escreva o comunicado para todos os alunos..."
+                            rows={5}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors resize-none"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between pt-2">
+                          <p className="text-xs text-gray-500">
+                            Será enviado para <span className="text-white font-bold">{draft.students?.length || 0}</span> aluno(s)
+                          </p>
+                          <button
+                            type="submit"
+                            disabled={isSendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
+                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Send className="w-4 h-4" />
+                            {isSendingBroadcast ? 'Enviando...' : 'Enviar para Todos'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Info Panel */}
+                    <div className="space-y-4">
+                      <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-purple-900/20 to-transparent">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
+                          <Radio className="w-5 h-5" />
+                        </div>
+                        <h4 className="text-base font-bold text-white mb-2">Broadcast</h4>
+                        <p className="text-sm text-gray-400 leading-relaxed">
+                          O comunicado aparecerá na caixa de mensagens de cada aluno dentro do portal, com destaque de leitura não realizada.
+                        </p>
+                      </div>
+                      <div className="glass-panel p-6 rounded-3xl border-white/5">
+                        <h4 className="text-sm font-bold text-white mb-4">Destinatários</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {(draft.students || []).length === 0 ? (
+                            <p className="text-xs text-gray-500">Nenhum aluno cadastrado ainda.</p>
+                          ) : (
+                            (draft.students || []).map((s: any) => (
+                              <div key={s.id} className="flex items-center gap-2">
+                                <img src={s.avatar} alt={s.name} className="w-6 h-6 rounded-full border border-white/10 shrink-0 object-cover" />
+                                <span className="text-xs text-gray-300 truncate">{s.name}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
