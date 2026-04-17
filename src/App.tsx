@@ -505,6 +505,50 @@ function App() {
           </div>
         </section>
 
+        {/* Teachers Section */}
+        <section id="professores" className="py-20 md:py-32 bg-black/40 border-y border-white/5 relative overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+          
+          <div className="container mx-auto px-6 relative z-10">
+                <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
+                    <h2 className="text-3xl md:text-5xl font-black text-white mb-6 font-display tracking-tight px-4 md:px-0">Aprenda com quem <span className="text-blue-600 neon-text-blue">faz acontecer.</span></h2>
+                    <p className="text-lg md:text-xl text-gray-400 font-light px-4 md:px-0">Nossos professores são profissionais ativos no mercado, dirigindo e dublando as maiores produções da atualidade.</p>
+                  {siteData.teachers.length > 3 && (
+                    <div className="mt-8">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAllTeachers(p => !p)}
+                        className="border-white/10 text-white hover:bg-white/5 rounded-full px-8 py-4 h-auto whimsy-hover neon-glow-white"
+                      >
+                        {showAllTeachers ? 'Ver menos' : 'Conhecer toda a equipe'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+            {(() => {
+              const priority = (name: string) => {
+                const n = name.toLowerCase();
+                if (n.includes('vitor') && n.includes('paranhos')) return 0;
+                if (n.includes('daniel') && (n.includes('vila') || n.includes('avila'))) return 1;
+                if (n.includes('ettore') && n.includes('zuim')) return 2;
+                return 3;
+              };
+              const sorted = [...siteData.teachers].sort((a, b) => priority(a.name) - priority(b.name));
+              const displayed = showAllTeachers ? sorted : sorted.slice(0, 3);
+              return (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {displayed.map((teacher, i) => (
+                <div key={i} className="flex justify-center">
+                  <TeacherCard teacher={teacher} index={i} />
+                </div>
+              ))}
+            </div>
+              );
+            })()}
+          </div>
+        </section>
+
         {/* Modules Section */}
         <section id="metodologia" className="py-20 md:py-32 relative">
           <div className="container mx-auto px-6">
@@ -531,7 +575,7 @@ function App() {
                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-colors"></div>
                       
                       <div className="text-6xl font-black text-white/5 font-display absolute top-4 right-6 group-hover:text-white/10 transition-colors">
-                        {mod.num || String(i + 1).padStart(2, '0')}
+                        {String(i + 1)}
                       </div>
                       
                       <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-blue-600/20 group-hover:border-blue-600/30 transition-all duration-300">
@@ -617,56 +661,12 @@ function App() {
           </div>
         </section>
 
-        {/* Teachers Section */}
-        <section id="professores" className="py-20 md:py-32 bg-black/40 border-y border-white/5 relative overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-          
-          <div className="container mx-auto px-6 relative z-10">
-                <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
-                    <h2 className="text-3xl md:text-5xl font-black text-white mb-6 font-display tracking-tight px-4 md:px-0">Aprenda com quem <span className="text-blue-600 neon-text-blue">faz acontecer.</span></h2>
-                    <p className="text-lg md:text-xl text-gray-400 font-light px-4 md:px-0">Nossos professores são profissionais ativos no mercado, dirigindo e dublando as maiores produções da atualidade.</p>
-                  {siteData.teachers.length > 3 && (
-                    <div className="mt-8">
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowAllTeachers(p => !p)}
-                        className="border-white/10 text-white hover:bg-white/5 rounded-full px-8 py-4 h-auto whimsy-hover neon-glow-white"
-                      >
-                        {showAllTeachers ? 'Ver menos' : 'Conhecer toda a equipe'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-            {(() => {
-              const priority = (name: string) => {
-                const n = name.toLowerCase();
-                if (n.includes('vitor') && n.includes('paranhos')) return 0;
-                if (n.includes('daniel') && (n.includes('vila') || n.includes('avila'))) return 1;
-                if (n.includes('ettore') && n.includes('zuim')) return 2;
-                return 3;
-              };
-              const sorted = [...siteData.teachers].sort((a, b) => priority(a.name) - priority(b.name));
-              const displayed = showAllTeachers ? sorted : sorted.slice(0, 3);
-              return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {displayed.map((teacher, i) => (
-                <div key={i} className="flex justify-center">
-                  <TeacherCard teacher={teacher} index={i} />
-                </div>
-              ))}
-            </div>
-              );
-            })()}
-          </div>
-        </section>
-
         {/* Learnings Section */}
         <section className="py-20 md:py-32 relative">
           <div className="container mx-auto px-6">
             <div className="text-center max-w-3xl mx-auto mb-16 md:mb-20">
               <h2 className="text-3xl md:text-5xl font-black text-white mb-6 font-display tracking-tight px-4 md:px-0">O conteúdo programático, <span className="text-blue-500 neon-text-blue">semana a semana</span></h2>
-              <p className="text-lg md:text-xl text-gray-400 font-light px-4 md:px-0">Clique em um módulo para ver as 24 aulas que compõem cada etapa da sua formação.</p>
+              <p className="text-lg md:text-xl text-gray-400 font-light px-4 md:px-0">Clique em um módulo e veja as aulas que compõem cada etapa da sua formação.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
@@ -684,14 +684,12 @@ function App() {
                     >
                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-colors" />
                       <div className="text-6xl font-black text-white/5 font-display absolute top-4 right-6 group-hover:text-white/10 transition-colors">
-                        {mod.num || String(i + 1).padStart(2, '0')}
+                        {String(i + 1)}
                       </div>
                       <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-blue-600/20 group-hover:border-blue-600/30 transition-all duration-300">
                         {i === 0 ? <Mic className="w-7 h-7 text-blue-400" /> : i === 1 ? <Headphones className="w-7 h-7 text-blue-400" /> : <Star className="w-7 h-7 text-blue-400" />}
                       </div>
-                      <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-3">{initialSiteData.modules[i]?.duration || mod.duration} · 24 aulas</p>
                       <h3 className="text-2xl font-bold text-white mb-3 font-display leading-tight">{mod.title}</h3>
-                      <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-3">{(mod.desc?.length ?? 0) > 120 ? (initialSiteData.modules[i]?.desc ?? mod.desc) : mod.desc}</p>
                       <div className="flex items-center gap-2 text-blue-400 text-sm font-bold group-hover:gap-3 transition-all mt-auto">
                         <BookOpen className="w-4 h-4" />
                         Ver conteúdo programático
@@ -772,7 +770,7 @@ function App() {
                               : 'text-gray-500 hover:text-white border border-white/5 hover:border-white/15'
                           }`}
                         >
-                          {mod.num || String(i + 1).padStart(2, '0')}
+                          {String(i + 1)}
                         </button>
                       ))}
                     </div>
