@@ -41,10 +41,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const [studentSupport, setStudentSupport] = useState<Record<string, any[]>>({});
   const [allSupportTickets, setAllSupportTickets] = useState<any[]>([]);
   const [supportReply, setSupportReply] = useState<Record<string, string>>({});
-  const [broadcastTitle, setBroadcastTitle] = useState('');
-  const [broadcastBody, setBroadcastBody] = useState('');
-  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
-  const [broadcastSent, setBroadcastSent] = useState(false);
+  const [notices, setNotices] = useState<any[]>([]);
+  const [noticeTitle, setNoticeTitle] = useState('');
+  const [noticeBody, setNoticeBody] = useState('');
+  const [isCreatingNotice, setIsCreatingNotice] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryPwd, setRecoveryPwd] = useState('');
+  const [recoveryPwdConfirm, setRecoveryPwdConfirm] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleSeedDatabase = async () => {
     const confirmed = window.confirm(
@@ -534,25 +538,34 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     }
   };
 
-  const handleBroadcast = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (auth) firebaseService.getNotices().then(n => setNotices((n as any[]) || []));
+  }, [auth]);
+
+  const handleCreateNotice = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!broadcastTitle.trim() || !broadcastBody.trim()) { toast.error('Preencha título e mensagem.'); return; }
-    const students = draft.students || [];
-    if (students.length === 0) { toast.error('Nenhum aluno cadastrado.'); return; }
-    setIsSendingBroadcast(true);
+    if (!noticeTitle.trim() || !noticeBody.trim()) { toast.error('Preencha título e mensagem.'); return; }
+    setIsCreatingNotice(true);
     try {
-      await Promise.all(students.map((s: any) =>
-        firebaseService.createStudentMessage(s.id, { title: broadcastTitle, body: broadcastBody })
-      ));
-      setBroadcastTitle('');
-      setBroadcastBody('');
-      setBroadcastSent(true);
-      setTimeout(() => setBroadcastSent(false), 4000);
-      toast.success(`Comunicado enviado para ${students.length} aluno(s).`);
+      const created = await firebaseService.createNotice({ title: noticeTitle, body: noticeBody });
+      setNotices(prev => [created, ...prev]);
+      setNoticeTitle('');
+      setNoticeBody('');
+      toast.success('Aviso publicado!');
     } catch {
-      toast.error('Erro ao enviar comunicado.');
+      toast.error('Erro ao publicar aviso.');
     } finally {
-      setIsSendingBroadcast(false);
+      setIsCreatingNotice(false);
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    try {
+      await firebaseService.deleteNotice(id);
+      setNotices(prev => prev.filter(n => n.id !== id));
+      toast.success('Aviso removido.');
+    } catch {
+      toast.error('Erro ao remover aviso.');
     }
   };
 
@@ -636,7 +649,61 @@ export function AdminPanel({ data, onSave, onClose }: any) {
               {isLoading ? 'Autenticando...' : 'Entrar no Painel'}
             </Button>
           </form>
-          <button onClick={onClose} className="mt-8 text-sm text-muted-foreground hover:text-white transition-colors">
+          <button
+            type="button"
+            onClick={() => setShowRecovery(v => !v)}
+            className="mt-6 text-xs text-gray-600 hover:text-cyan-400 transition-colors"
+          >
+            {showRecovery ? 'Cancelar recuperação' : 'Não consigo acessar minha conta'}
+          </button>
+
+          {showRecovery && (
+            <div className="mt-6 p-5 rounded-2xl bg-orange-500/5 border border-orange-500/20 text-left">
+              <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-4">Redefinir acesso — borbaggabriel@gmail.com</p>
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={recoveryPwd}
+                  onChange={e => setRecoveryPwd(e.target.value)}
+                  placeholder="Nova senha (mínimo 6 caracteres)"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-400 transition-colors text-sm"
+                />
+                <input
+                  type="password"
+                  value={recoveryPwdConfirm}
+                  onChange={e => setRecoveryPwdConfirm(e.target.value)}
+                  placeholder="Confirmar nova senha"
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-400 transition-colors text-sm"
+                />
+                <button
+                  type="button"
+                  disabled={isResetting || recoveryPwd.length < 6 || recoveryPwd !== recoveryPwdConfirm}
+                  onClick={async () => {
+                    if (recoveryPwd !== recoveryPwdConfirm) { toast.error('As senhas não coincidem.'); return; }
+                    setIsResetting(true);
+                    try {
+                      await firebaseService.resetAdminAccess('borbaggabriel@gmail.com', recoveryPwd);
+                      toast.success('Conta admin redefinida! Faça login agora.');
+                      setEmail('borbaggabriel@gmail.com');
+                      setPwd(recoveryPwd);
+                      setShowRecovery(false);
+                      setRecoveryPwd('');
+                      setRecoveryPwdConfirm('');
+                    } catch (err: any) {
+                      toast.error(err.message || 'Erro ao redefinir acesso.');
+                    } finally {
+                      setIsResetting(false);
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResetting ? 'Redefinindo...' : 'Redefinir e Preparar Login'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button onClick={onClose} className="mt-6 text-sm text-muted-foreground hover:text-white transition-colors">
             ← Voltar ao site
           </button>
         </motion.div>
@@ -2116,34 +2183,26 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Comunicados</h3>
-                    <p className="text-muted-foreground">Envie uma mensagem para todos os alunos de uma vez.</p>
+                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Quadro de Avisos</h3>
+                    <p className="text-muted-foreground">Publique avisos que aparecerão no portal de todos os alunos.</p>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Broadcast Form */}
-                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5">
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    {/* Create Form */}
+                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5 self-start">
                       <div className="flex items-center gap-3 mb-6">
                         <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
                           <Megaphone className="w-5 h-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Novo Comunicado</h4>
+                        <h4 className="text-lg font-bold text-white">Novo Aviso</h4>
                       </div>
-
-                      {broadcastSent && (
-                        <div className="mb-6 p-4 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />
-                          <p className="text-green-400 font-bold text-sm">Comunicado enviado com sucesso para todos os alunos!</p>
-                        </div>
-                      )}
-
-                      <form onSubmit={handleBroadcast} className="space-y-5">
+                      <form onSubmit={handleCreateNotice} className="space-y-5">
                         <div>
                           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Título</label>
                           <input
                             type="text"
-                            value={broadcastTitle}
-                            onChange={e => setBroadcastTitle(e.target.value)}
+                            value={noticeTitle}
+                            onChange={e => setNoticeTitle(e.target.value)}
                             placeholder="Ex: Aula especial esta semana!"
                             className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors"
                           />
@@ -2151,55 +2210,62 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         <div>
                           <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Mensagem</label>
                           <textarea
-                            value={broadcastBody}
-                            onChange={e => setBroadcastBody(e.target.value)}
-                            placeholder="Escreva o comunicado para todos os alunos..."
+                            value={noticeBody}
+                            onChange={e => setNoticeBody(e.target.value)}
+                            placeholder="Escreva o aviso para todos os alunos..."
                             rows={5}
                             className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors resize-none"
                           />
                         </div>
-                        <div className="flex items-center justify-between pt-2">
-                          <p className="text-xs text-gray-500">
-                            Será enviado para <span className="text-white font-bold">{draft.students?.length || 0}</span> aluno(s)
-                          </p>
-                          <button
-                            type="submit"
-                            disabled={isSendingBroadcast || !broadcastTitle.trim() || !broadcastBody.trim()}
-                            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Send className="w-4 h-4" />
-                            {isSendingBroadcast ? 'Enviando...' : 'Enviar para Todos'}
-                          </button>
-                        </div>
+                        <button
+                          type="submit"
+                          disabled={isCreatingNotice || !noticeTitle.trim() || !noticeBody.trim()}
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-4 h-4" />
+                          {isCreatingNotice ? 'Publicando...' : 'Publicar Aviso'}
+                        </button>
                       </form>
                     </div>
 
-                    {/* Info Panel */}
-                    <div className="space-y-4">
-                      <div className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-purple-900/20 to-transparent">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-4">
-                          <Radio className="w-5 h-5" />
-                        </div>
-                        <h4 className="text-base font-bold text-white mb-2">Broadcast</h4>
-                        <p className="text-sm text-gray-400 leading-relaxed">
-                          O comunicado aparecerá na caixa de mensagens de cada aluno dentro do portal, com destaque de leitura não realizada.
-                        </p>
+                    {/* Notices List */}
+                    <div className="lg:col-span-3 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-white uppercase tracking-widest">Avisos Publicados</h4>
+                        <span className="text-xs text-gray-500">{notices.length} aviso(s)</span>
                       </div>
-                      <div className="glass-panel p-6 rounded-3xl border-white/5">
-                        <h4 className="text-sm font-bold text-white mb-4">Destinatários</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                          {(draft.students || []).length === 0 ? (
-                            <p className="text-xs text-gray-500">Nenhum aluno cadastrado ainda.</p>
-                          ) : (
-                            (draft.students || []).map((s: any) => (
-                              <div key={s.id} className="flex items-center gap-2">
-                                <img src={s.avatar} alt={s.name} className="w-6 h-6 rounded-full border border-white/10 shrink-0 object-cover" />
-                                <span className="text-xs text-gray-300 truncate">{s.name}</span>
+                      {notices.length === 0 ? (
+                        <div className="glass-panel p-10 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
+                          <Bell className="w-10 h-10 text-gray-600 mb-3" />
+                          <p className="text-gray-400 font-medium text-sm">Nenhum aviso publicado.</p>
+                          <p className="text-gray-600 text-xs mt-1">Crie um aviso no formulário ao lado.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {notices.map((n: any) => {
+                            const date = n.created_at ? new Date(n.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                            return (
+                              <div key={n.id} className="glass-panel p-5 rounded-2xl border-white/5 flex items-start gap-4">
+                                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                                  <Bell className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-white">{n.title}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{n.body}</p>
+                                  {date && <p className="text-[10px] text-gray-600 mt-1.5">{date}</p>}
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteNotice(n.id)}
+                                  className="p-2 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
+                                  title="Remover aviso"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                            ))
-                          )}
+                            );
+                          })}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>

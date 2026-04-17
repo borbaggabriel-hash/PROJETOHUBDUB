@@ -14,12 +14,13 @@ import {
 import { Button } from '../components/ui/button';
 import { firebaseService } from '../services/supabaseService';
 
-export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
+export function StudentDashboard({ onLogout, onHome, data, studentData, onRefreshProfile }: any) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isCelebrating, setIsCelebrating] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [agendaItems, setAgendaItems] = useState<any[]>([]);
+  const [notices, setNotices] = useState<any[]>([]);
 
   const profile = studentData?.profile;
   const uid = studentData?.uid;
@@ -29,6 +30,7 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
     firebaseService.getStudentMessages(uid).then(msgs => setMessages((msgs as any[]) || []));
     firebaseService.getStudentInvoices(uid).then(invs => setInvoices((invs as any[]) || []));
     firebaseService.getAgendaItems(uid).then(items => setAgendaItems((items as any[]) || []));
+    firebaseService.getNotices().then(n => setNotices((n as any[]) || []));
   }, [uid]);
 
   const unreadCount = messages.filter((m: any) => !m.read).length;
@@ -45,7 +47,7 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} />;
+        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} notices={notices} />;
       case 'mensagens':
         return <MensagensView messages={messages} setMessages={setMessages} uid={uid} />;
       case 'financeiro':
@@ -55,9 +57,9 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
       case 'suporte':
         return <SuporteView uid={uid} profile={profile} />;
       case 'perfil':
-        return <PerfilView uid={uid} profile={profile} />;
+        return <PerfilView uid={uid} profile={profile} studentData={studentData} onRefreshProfile={onRefreshProfile} />;
       default:
-        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} />;
+        return <DashboardView setActiveTab={setActiveTab} data={data} studentData={studentData} messages={messages} invoices={invoices} agendaItems={agendaItems} notices={notices} />;
     }
   };
 
@@ -73,17 +75,6 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
             <span className="font-black text-xl tracking-tighter font-display text-white block leading-none">THE HUB</span>
             <span className="font-bold text-xs tracking-widest text-cyan-400 uppercase">Portal do Aluno</span>
           </div>
-        </div>
-
-        <div className="px-5 py-4 border-b border-white/5">
-          <button onClick={() => setActiveTab('perfil')} className="w-full glass-panel p-3 rounded-2xl border-white/5 flex items-center gap-3 hover:border-cyan-500/30 transition-colors text-left">
-            <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-10 h-10 rounded-full border-2 border-cyan-500/30 shrink-0 object-cover" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white truncate">{profile?.full_name || 'Aluno'}</p>
-              <p className="text-xs text-cyan-400">Aluno Ativo</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-600 shrink-0" />
-          </button>
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
@@ -251,7 +242,7 @@ export function StudentDashboard({ onLogout, onHome, data, studentData }: any) {
   );
 }
 
-function DashboardView({ setActiveTab, data, studentData, messages, invoices, agendaItems }: any) {
+function DashboardView({ setActiveTab, data, studentData, messages, invoices, agendaItems, notices }: any) {
   const profile = studentData?.profile;
   const enrollments = studentData?.enrollments || [];
   const totalProgress = enrollments.length > 0
@@ -260,6 +251,7 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
   const mainEnrollment = enrollments[0];
   const unreadMessages = (messages || []).filter((m: any) => !m.read).length;
   const pendingInvoices = (invoices || []).filter((inv: any) => inv.status === 'Pendente').length;
+  const noticesList = notices || [];
   const today = new Date().toISOString().split('T')[0];
   const nextEvent = (agendaItems || []).find((i: any) => i.date >= today);
 
@@ -308,71 +300,46 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <button onClick={() => setActiveTab('mensagens')}
-          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-blue-500/30 transition-colors text-left relative">
-          <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-            <MessageSquare className="w-4 h-4" />
-            {unreadMessages > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-cyan-500 rounded-full" />}
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Mensagens</p>
-            <p className={`font-bold text-lg leading-none ${unreadMessages > 0 ? 'text-cyan-400' : 'text-white'}`}>
-              {unreadMessages > 0 ? `${unreadMessages} nova${unreadMessages > 1 ? 's' : ''}` : 'Em dia'}
-            </p>
-          </div>
-        </button>
-
-        <button onClick={() => setActiveTab('financeiro')}
-          className={`glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 transition-colors text-left ${pendingInvoices > 0 ? 'hover:border-yellow-500/30' : 'hover:border-green-500/30'}`}>
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${pendingInvoices > 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
-            <CreditCard className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Financeiro</p>
-            <p className={`font-bold text-lg leading-none ${pendingInvoices > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
-              {pendingInvoices > 0 ? `${pendingInvoices} pendente${pendingInvoices > 1 ? 's' : ''}` : 'Em dia'}
-            </p>
-          </div>
-        </button>
-
-        <button onClick={() => setActiveTab('agenda')}
-          className="glass-panel p-4 rounded-2xl border-white/5 flex flex-col gap-3 hover:border-purple-500/30 transition-colors text-left">
-          <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
-            <Calendar className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-0.5">Próximo Evento</p>
-            <p className="font-bold text-white text-sm leading-tight truncate">{nextEvent ? nextEvent.title : 'Nenhum'}</p>
-            {nextEvent && <p className="text-xs text-purple-400 mt-0.5">{new Date(nextEvent.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</p>}
-          </div>
-        </button>
-      </div>
-
-      {/* Recent Messages */}
-      {messages.length > 0 && (
-        <div className="glass-panel p-5 rounded-2xl border-white/5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-white text-sm">Mensagens Recentes</h3>
-            <button onClick={() => setActiveTab('mensagens')} className="text-xs text-cyan-400 hover:underline font-bold">Ver todas</button>
-          </div>
-          <div className="space-y-2">
-            {messages.slice(0, 3).map((msg: any) => (
-              <div key={msg.id} className={`flex items-start gap-3 p-3 rounded-xl ${!msg.read ? 'bg-cyan-500/5 border border-cyan-500/10' : 'bg-white/[0.02]'}`}>
-                <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
-                  <Bell className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{msg.title}</p>
-                  <p className="text-xs text-gray-400 line-clamp-1 mt-0.5">{msg.body}</p>
-                </div>
-                {!msg.read && <span className="w-2 h-2 bg-cyan-500 rounded-full shrink-0 mt-2" />}
-              </div>
-            ))}
+      {/* Quadro de Avisos */}
+      <div className="glass-panel rounded-2xl border-white/5 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Bell className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-white">Quadro de Avisos</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Comunicados da escola</p>
+            </div>
           </div>
         </div>
-      )}
+
+        {noticesList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-3">
+              <Bell className="w-5 h-5 text-gray-600" />
+            </div>
+            <p className="text-gray-400 font-medium text-sm">Nenhum aviso no momento.</p>
+            <p className="text-gray-600 text-xs mt-1">Comunicados da escola aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.04]">
+            {noticesList.slice(0, 5).map((n: any) => {
+              const date = n.created_at ? new Date(n.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+              return (
+                <div key={n.id} className="flex items-start gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div className="w-2 h-2 rounded-full mt-2 shrink-0 bg-cyan-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white">{n.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{n.body}</p>
+                    {date && <p className="text-[10px] text-gray-600 mt-1.5">{date}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -690,39 +657,17 @@ function SuporteView({ uid, profile }: { uid: string; profile: any }) {
   );
 }
 
-function PerfilView({ uid, profile }: { uid: string; profile: any }) {
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+function PerfilView({ uid, profile, studentData, onRefreshProfile }: { uid: string; profile: any; studentData: any; onRefreshProfile?: () => void }) {
   const [form, setForm] = useState({
     full_name: profile?.full_name || '',
-    avatar_url: profile?.avatar_url || '',
     phone: profile?.phone || '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState('');
 
   const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
   const [isSavingPw, setIsSavingPw] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const handleAvatarClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingAvatar(true);
-    setAvatarError('');
-    try {
-      const url = await firebaseService.uploadAvatar(uid, file);
-      setForm(f => ({ ...f, avatar_url: url }));
-      await firebaseService.updateStudentProfile(uid, { avatar_url: url });
-    } catch (err: any) {
-      setAvatarError(err.message || 'Erro ao fazer upload.');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -731,6 +676,7 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
       await firebaseService.updateStudentProfile(uid, { full_name: form.full_name, phone: form.phone });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      onRefreshProfile?.();
     } catch (err) {
       console.error(err);
     } finally {
@@ -766,6 +712,17 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
         .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     : null;
 
+  const enrollment = studentData?.enrollments?.[0];
+
+  const infoRows = [
+    { label: 'Nome', value: form.full_name || profile?.full_name || '—' },
+    { label: 'E-mail', value: profile?.email || '—' },
+    { label: 'Telefone', value: form.phone || profile?.phone || '—' },
+    { label: 'Módulo', value: enrollment?.module || '—' },
+    { label: 'Status', value: profile?.status || 'Ativo', badge: true },
+    ...(memberSince ? [{ label: 'Membro desde', value: memberSince }] : []),
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -774,39 +731,19 @@ function PerfilView({ uid, profile }: { uid: string; profile: any }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Avatar Card */}
+        {/* Info Card */}
         <div className="glass-panel p-8 rounded-3xl border-white/5 flex flex-col items-center text-center">
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          <div className="relative mb-5 cursor-pointer group/avatar" onClick={handleAvatarClick}>
-            <img
-              src={form.avatar_url || `https://i.pravatar.cc/150?u=${uid}`}
-              alt="Avatar"
-              className="w-24 h-24 rounded-full border-4 border-cyan-500/30 object-cover transition-opacity group-hover/avatar:opacity-70"
-            />
-            <div className="absolute inset-0 flex items-center justify-center rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-              {uploadingAvatar
-                ? <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                : <Camera className="w-6 h-6 text-white drop-shadow-lg" />}
-            </div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-cyan-500 border-2 border-[#0a0a0a] flex items-center justify-center">
-              <Camera className="w-4 h-4 text-black" />
-            </div>
-          </div>
-          {avatarError && <p className="text-xs text-red-400 mb-2">{avatarError}</p>}
-          <h3 className="text-lg font-bold text-white mb-0.5">{form.full_name || 'Aluno'}</h3>
-          <p className="text-sm text-cyan-400 mb-1">Aluno Ativo</p>
-          <p className="text-xs text-gray-500">{profile?.email || '—'}</p>
-          <div className="w-full mt-6 pt-5 border-t border-white/5 space-y-3 text-left">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">Status</span>
-              <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">Ativo</span>
-            </div>
-            {memberSince && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Membro desde</span>
-                <span className="text-white font-medium text-xs capitalize">{memberSince}</span>
+          <h3 className="text-lg font-bold text-white mb-0.5">{profile?.full_name || 'Aluno'}</h3>
+          <p className="text-sm text-cyan-400 mb-5">Aluno Ativo</p>
+          <div className="w-full space-y-3 text-left">
+            {infoRows.map(row => (
+              <div key={row.label} className="flex items-center justify-between text-sm border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                <span className="text-gray-400">{row.label}</span>
+                {(row as any).badge
+                  ? <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold border border-green-500/20">{row.value}</span>
+                  : <span className="text-white font-medium text-xs text-right max-w-[60%] truncate">{row.value}</span>}
               </div>
-            )}
+            ))}
           </div>
         </div>
 

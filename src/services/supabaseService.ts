@@ -315,16 +315,34 @@ export const supabaseService = {
     const ext = file.name.split('.').pop() || 'jpg';
     const path = `${uid}/avatar.${ext}`;
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('avatars')
+      .from('course-images')
       .upload(path, file, { upsert: true, contentType: file.type });
     if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`);
-    const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(path);
+    const { data } = supabaseAdmin.storage.from('course-images').getPublicUrl(path);
     return data.publicUrl;
   },
 
   async changePassword(newPassword: string) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
+  },
+
+  async resetAdminAccess(email: string, password: string) {
+    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) throw listError;
+    const existing = listData.users.find((u: any) => u.email === email);
+    let uid: string;
+    if (existing) {
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existing.id, { password, email_confirm: true });
+      if (updateError) throw updateError;
+      uid = existing.id;
+    } else {
+      const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({ email, password, email_confirm: true });
+      if (createError) throw createError;
+      uid = created.user.id;
+    }
+    await supabaseAdmin.from('profiles').upsert({ id: uid, email, role: 'owner', full_name: 'Admin', created_at: new Date().toISOString() });
+    return uid;
   },
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -404,6 +422,27 @@ export const supabaseService = {
   async deleteSupportTicket(id: string) {
     const { error } = await supabaseAdmin.from('student_support').delete().eq('id', id);
     if (error) handleError(error, 'delete', 'student_support');
+  },
+
+  // ── Notices (global) ──────────────────────────────────────────────────────
+
+  async createNotice(notice: { title: string; body: string }) {
+    const { data, error } = await supabaseAdmin.from('notices').insert({
+      title: notice.title, body: notice.body, created_at: new Date().toISOString(),
+    }).select().single();
+    if (error) handleError(error, 'create', 'notices');
+    return data;
+  },
+
+  async getNotices() {
+    const { data, error } = await supabaseAdmin.from('notices').select('*').order('created_at', { ascending: false });
+    if (error) return [];
+    return data ?? [];
+  },
+
+  async deleteNotice(id: string) {
+    const { error } = await supabaseAdmin.from('notices').delete().eq('id', id);
+    if (error) handleError(error, 'delete', 'notices');
   },
 
   // ── Agenda ────────────────────────────────────────────────────────────────

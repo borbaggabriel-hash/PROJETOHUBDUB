@@ -392,6 +392,7 @@ function App() {
         onHome={() => setIsStudentDashboardOpen(false)} 
         data={siteData} 
         studentData={studentData}
+        onRefreshProfile={() => currentUser && loadStudentData(currentUser.id ?? currentUser.uid)}
       />
     );
   }
