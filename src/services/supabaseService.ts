@@ -366,6 +366,11 @@ export const supabaseService = {
     if (error) handleError(error, 'delete', 'student_messages');
   },
 
+  async markStudentMessageRead(id: string) {
+    const { error } = await supabaseAdmin.from('student_messages').update({ read: true }).eq('id', id);
+    if (error) handleError(error, 'update', 'student_messages');
+  },
+
   // ── Invoices ──────────────────────────────────────────────────────────────
 
   async createStudentInvoice(uid: string, invoice: { description: string; amount: string; due_date: string; status: string }) {

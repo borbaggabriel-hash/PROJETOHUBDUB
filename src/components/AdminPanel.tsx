@@ -395,6 +395,61 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     }
   };
 
+  const handleSaveTab = async (tab: string) => {
+    setIsLoading(true);
+    try {
+      if (tab === 'settings' || tab === 'promocao') {
+        await firebaseService.updateSettings(draft.settings);
+      } else if (tab === 'banners') {
+        for (const banner of draft.banners || []) {
+          if (typeof banner.id === 'string' && banner.id.startsWith('temp-')) {
+            const { id, ...d } = banner; await firebaseService.createBanner(d);
+          } else if (banner.id) { await firebaseService.updateBanner(banner.id, banner); }
+        }
+      } else if (tab === 'modules') {
+        for (const module of draft.modules || []) {
+          if (typeof module.id === 'string' && module.id.startsWith('temp-')) {
+            const { id, ...d } = module; await firebaseService.createModule(d);
+          } else if (module.id) { await firebaseService.updateModule(module.id, module); }
+        }
+      } else if (tab === 'learnings') {
+        for (const learning of draft.learnings || []) {
+          if (typeof learning.id === 'string' && learning.id.startsWith('temp-')) {
+            const { id, ...d } = learning; await firebaseService.createLearning(d);
+          } else if (learning.id) { await firebaseService.updateLearning(learning.id, learning); }
+        }
+      } else if (tab === 'testimonials') {
+        for (const testimonial of draft.testimonials || []) {
+          const td = { ...testimonial, text: testimonial.text ?? testimonial.content ?? '', avatar: testimonial.avatar ?? testimonial.imageUrl ?? '' };
+          delete td.content; delete td.imageUrl;
+          if (typeof testimonial.id === 'string' && testimonial.id.startsWith('temp-')) {
+            const { id, ...d } = td; await firebaseService.createTestimonial(d);
+          } else if (testimonial.id) { await firebaseService.updateTestimonial(testimonial.id, td); }
+        }
+      } else if (tab === 'faqs') {
+        for (const faq of draft.faqs || []) {
+          if (typeof faq.id === 'string' && faq.id.startsWith('temp-')) {
+            const { id, ...d } = faq; await firebaseService.createFAQ(d);
+          } else if (faq.id) { await firebaseService.updateFAQ(faq.id, faq); }
+        }
+      } else if (tab === 'teachers') {
+        for (const teacher of draft.teachers || []) {
+          if (typeof teacher.id === 'string' && teacher.id.startsWith('temp-')) {
+            const { id, ...d } = teacher; await firebaseService.createTeacher(d);
+          } else if (teacher.id) { await firebaseService.updateTeacher(teacher.id, teacher); }
+        }
+      }
+      const refreshedSiteData = await firebaseService.getSiteData();
+      onSave(refreshedSiteData ? { ...draft, ...refreshedSiteData, students: draft.students || [], enrollments: draft.enrollments || [], recentActivity: draft.recentActivity || [] } : draft);
+      toast.success('Alterações publicadas com sucesso.');
+    } catch (error) {
+      console.error('Erro ao salvar aba:', error);
+      toast.error('Erro ao publicar alterações. Verifique o console.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCreateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudent.full_name || !newStudent.email || !newStudent.password || !newStudent.module_title) {
@@ -603,6 +658,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
     { id: 'banners', label: 'Banners', icon: ImageIcon },
     { id: 'suporte', label: 'Suporte', icon: Headphones },
     { id: 'settings', label: 'Configurações', icon: Settings },
+    { id: 'promocao', label: 'Promoção', icon: Megaphone },
   ];
 
   if (!auth) {
@@ -796,19 +852,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
           })}
         </div>
         
-        <div className="p-6 border-t border-white/5 bg-black/20 space-y-3">
-          <Button 
-            onClick={handleSave} 
-            disabled={isLoading}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl py-6 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            {isLoading ? 'Salvando...' : 'Publicar Alterações'}
-          </Button>
+        <div className="p-6 border-t border-white/5 bg-black/20">
           <Button onClick={handleLogout} variant="outline" className="w-full border-white/10 text-white hover:bg-white/5 rounded-xl py-6 whimsy-hover">
             <LogOut className="w-4 h-4 mr-2" /> Sair do Painel
           </Button>
@@ -1621,6 +1665,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     ))}
                   </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('teachers')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
+                  </div>
                 </motion.div>
               )}
 
@@ -1692,6 +1742,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('banners')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
                   </div>
                 </motion.div>
               )}
@@ -1779,6 +1835,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     ))}
                   </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('modules')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
+                  </div>
                 </motion.div>
               )}
 
@@ -1848,6 +1910,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     ))}
                   </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('learnings')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
+                  </div>
                 </motion.div>
               )}
 
@@ -1911,6 +1979,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('testimonials')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
                   </div>
                 </motion.div>
               )}
@@ -2062,6 +2136,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       ))}
                     </div>
                   )}
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('faqs')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
+                  </div>
                 </motion.div>
               )}
 
@@ -2168,6 +2248,216 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       <Database className="w-4 h-4" />
                       {isSeedingDb ? 'Inicializando...' : 'Inicializar com Currículo Padrão'}
                     </button>
+                  </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('settings')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* PROMOCAO TAB */}
+              {activeTab === 'promocao' && (
+                <motion.div
+                  key="promocao"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-8"
+                >
+                  <div>
+                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Banner Promocional</h3>
+                    <p className="text-muted-foreground">Configure o rodapé de promoção que aparece sobreposto a todo o site.</p>
+                  </div>
+
+                  <div className="glass-panel p-8 md:p-10 rounded-3xl border-white/5 space-y-8">
+                    {/* Enable toggle */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-bold">Ativar banner</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Exibe o rodapé promocional para todos os visitantes.</p>
+                      </div>
+                      <button
+                        onClick={() => setDraft((prev: any) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            promoBanner: { ...prev.settings?.promoBanner, enabled: !prev.settings?.promoBanner?.enabled }
+                          }
+                        }))}
+                        className={`relative w-14 h-7 rounded-full transition-colors ${
+                          draft.settings?.promoBanner?.enabled ? 'bg-cyan-500' : 'bg-white/10'
+                        }`}
+                      >
+                        <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                          draft.settings?.promoBanner?.enabled ? 'translate-x-7' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Headline */}
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Texto da chamada</label>
+                        <input
+                          type="text"
+                          value={draft.settings?.promoBanner?.headline || ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, headline: e.target.value } }
+                          }))}
+                          placeholder="Ex: Aproveite a temporada de descontos"
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                      </div>
+
+                      {/* Badge */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Badge — valor/desconto</label>
+                        <input
+                          type="text"
+                          value={draft.settings?.promoBanner?.badge || ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, badge: e.target.value } }
+                          }))}
+                          placeholder="Ex: R$99"
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                      </div>
+
+                      {/* Badge subtext */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Badge — subtexto</label>
+                        <input
+                          type="text"
+                          value={draft.settings?.promoBanner?.badgeSubtext || ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, badgeSubtext: e.target.value } }
+                          }))}
+                          placeholder="Ex: DE ENTRADA"
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                      </div>
+
+                      {/* Expiry */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Data/hora de expiração</label>
+                        <input
+                          type="datetime-local"
+                          value={draft.settings?.promoBanner?.expiresAt
+                            ? new Date(draft.settings.promoBanner.expiresAt).toISOString().slice(0,16)
+                            : ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, expiresAt: e.target.value ? new Date(e.target.value).toISOString() : '' } }
+                          }))}
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1.5">Alimenta a contagem regressiva. Deixe vazio para não exibir contador.</p>
+                      </div>
+
+                      {/* CTA text */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Texto do botão CTA</label>
+                        <input
+                          type="text"
+                          value={draft.settings?.promoBanner?.ctaText || ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, ctaText: e.target.value } }
+                          }))}
+                          placeholder="Ex: MATRICULE-SE"
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                      </div>
+
+                      {/* CTA action */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2">Ação do botão CTA</label>
+                        <input
+                          type="text"
+                          value={draft.settings?.promoBanner?.ctaAction || ''}
+                          onChange={e => setDraft((prev: any) => ({
+                            ...prev,
+                            settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, ctaAction: e.target.value } }
+                          }))}
+                          placeholder='"enroll" ou URL externa'
+                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1.5">Use <code className="text-cyan-400">enroll</code> para abrir o modal de matrícula, ou cole uma URL para redirecionar.</p>
+                      </div>
+                    </div>
+
+                    {/* Background texture */}
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Textura de fundo</p>
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+                        {[
+                          { label: 'Azul Profundo', style: 'linear-gradient(90deg, #1a1060 0%, #2d1b8e 40%, #1a1060 100%)' },
+                          { label: 'Roxo Real', style: 'linear-gradient(90deg, #3b0764 0%, #6d28d9 50%, #3b0764 100%)' },
+                          { label: 'Vermelho Vivo', style: 'linear-gradient(90deg, #7f1d1d 0%, #dc2626 50%, #7f1d1d 100%)' },
+                          { label: 'Verde Floresta', style: 'linear-gradient(90deg, #052e16 0%, #166534 50%, #052e16 100%)' },
+                          { label: 'Âmbar Escuro', style: 'linear-gradient(90deg, #451a03 0%, #b45309 50%, #451a03 100%)' },
+                          { label: 'Rosa Escuro', style: 'linear-gradient(90deg, #500724 0%, #be185d 50%, #500724 100%)' },
+                          { label: 'Preto Fosco', style: 'linear-gradient(90deg, #000000 0%, #111111 50%, #000000 100%)' },
+                          { label: 'Ciano Escuro', style: 'linear-gradient(90deg, #042f2e 0%, #0d9488 50%, #042f2e 100%)' },
+                          { label: 'Índigo Neon', style: 'linear-gradient(135deg, #0c0a3e 0%, #4338ca 50%, #6366f1 100%)' },
+                          { label: 'Pôr do Sol', style: 'linear-gradient(90deg, #1c0533 0%, #9333ea 35%, #ec4899 65%, #f97316 100%)' },
+                          { label: 'Aurora', style: 'linear-gradient(90deg, #0f172a 0%, #1e3a5f 40%, #064e3b 100%)' },
+                          { label: 'Noite Estrelada', style: 'radial-gradient(ellipse at center, #1e1b4b 0%, #0f172a 70%)' },
+                          { label: 'Dourado Premium', style: 'linear-gradient(90deg, #1c1100 0%, #92400e 40%, #d97706 65%, #92400e 100%)' },
+                          { label: 'Grafite', style: 'linear-gradient(90deg, #111827 0%, #374151 50%, #111827 100%)' },
+                        ].map(({ label, style }) => {
+                          const isSelected = (draft.settings?.promoBanner?.bgStyle || 'linear-gradient(90deg, #1a1060 0%, #2d1b8e 40%, #1a1060 100%)') === style;
+                          return (
+                            <button
+                              key={label}
+                              title={label}
+                              onClick={() => setDraft((prev: any) => ({
+                                ...prev,
+                                settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, bgStyle: style } }
+                              }))}
+                              className={`w-full aspect-[3/1] rounded-lg border-2 transition-all ${isSelected ? 'border-cyan-400 scale-110 shadow-[0_0_12px_rgba(34,211,238,0.5)]' : 'border-transparent hover:border-white/30'}`}
+                              style={{ background: style }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Pré-visualização</p>
+                      <div className="rounded-2xl overflow-hidden relative" style={{background: draft.settings?.promoBanner?.bgStyle || 'linear-gradient(90deg, #1a1060 0%, #2d1b8e 40%, #1a1060 100%)'}}>
+                        <div className="h-20 flex items-center justify-center px-10 gap-6 relative">
+                          <p className="text-white font-semibold text-sm">
+                            {draft.settings?.promoBanner?.headline || 'Texto da chamada'}
+                          </p>
+                          <div className="shrink-0 flex flex-col items-center justify-center bg-white rounded-full w-16 h-16 shadow-xl leading-none ring-4 ring-white/30">
+                            <span className="text-[#1a1060] font-black text-base leading-none">{draft.settings?.promoBanner?.badge || 'R$99'}</span>
+                            {draft.settings?.promoBanner?.badgeSubtext && (
+                              <span className="text-[#1a1060] font-bold text-[8px] uppercase tracking-wide leading-none mt-0.5">{draft.settings.promoBanner.badgeSubtext}</span>
+                            )}
+                          </div>
+                          <p className="text-white font-mono font-bold text-sm shrink-0">00:00:00</p>
+                          <span className="shrink-0 bg-white text-[#1a1060] font-black text-xs px-4 py-2 rounded-full uppercase tracking-wide">
+                            {draft.settings?.promoBanner?.ctaText || 'MATRICULE-SE'}
+                          </span>
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 text-sm">✕</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('promocao')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
+                      {isLoading ? 'Salvando...' : 'Publicar Alterações'}
+                    </Button>
                   </div>
                 </motion.div>
               )}

@@ -315,7 +315,17 @@ export const initialSiteData = {
     supabaseUrl: "",
     supabaseAnonKey: "",
     siteName: "THE HUB",
-    contactEmail: "contato@thehub.com.br"
+    contactEmail: "contato@thehub.com.br",
+    promoBanner: {
+      enabled: false,
+      headline: "Aproveite a temporada de descontos",
+      badge: "R$99",
+      badgeSubtext: "DE ENTRADA",
+      expiresAt: "",
+      ctaText: "MATRICULE-SE",
+      ctaAction: "enroll",
+      bgStyle: "linear-gradient(90deg, #1a1060 0%, #2d1b8e 40%, #1a1060 100%)"
+    }
   },
   enrollments: []
 };
