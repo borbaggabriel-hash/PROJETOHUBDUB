@@ -35,7 +35,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const [studentInvoices, setStudentInvoices] = useState<Record<string, any[]>>({});
   const [newMessage, setNewMessage] = useState<Record<string, { title: string; body: string }>>({});
   const [newInvoice, setNewInvoice] = useState<Record<string, { description: string; amount: string; due_date: string; status: string }>>({});
-  const [studentProgress, setStudentProgress] = useState<Record<string, { module_title: string; module_slug: string; status: string; progress: number }>>({});
+  const [studentProgress, setStudentProgress] = useState<Record<string, { module_title: string; module_slug: string; status: string; validity: string; enrolled_by: string }>>({})
+  const [studentEnrollments, setStudentEnrollments] = useState<Record<string, any | null>>({});
   const [studentAgenda, setStudentAgenda] = useState<Record<string, any[]>>({});
   const [newAgendaItem, setNewAgendaItem] = useState<Record<string, { title: string; date: string; time: string; description: string; type: string }>>({});
   const [studentSupport, setStudentSupport] = useState<Record<string, any[]>>({});
@@ -473,15 +474,24 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   const handleLoadStudentPortalData = async (uid: string) => {
     if (studentMessages[uid] !== undefined) return;
     try {
-      const [msgs, invs] = await Promise.all([
+      const [msgs, invs, enrollment] = await Promise.all([
         firebaseService.getStudentMessages(uid),
-        firebaseService.getStudentInvoices(uid)
+        firebaseService.getStudentInvoices(uid),
+        firebaseService.getStudentEnrollmentByUid(uid)
       ]);
       setStudentMessages(prev => ({ ...prev, [uid]: (msgs as any[]) || [] }));
       setStudentInvoices(prev => ({ ...prev, [uid]: (invs as any[]) || [] }));
+      setStudentEnrollments(prev => ({ ...prev, [uid]: enrollment ?? null }));
+      if (enrollment) {
+        setStudentProgress(prev => ({
+          ...prev,
+          [uid]: { module_title: enrollment.module || '', module_slug: enrollment.module_slug || '', status: enrollment.status || 'Ativo', validity: enrollment.validity || '', enrolled_by: enrollment.enrolled_by || '' }
+        }));
+      }
     } catch {
       setStudentMessages(prev => ({ ...prev, [uid]: [] }));
       setStudentInvoices(prev => ({ ...prev, [uid]: [] }));
+      setStudentEnrollments(prev => ({ ...prev, [uid]: null }));
     }
   };
 
@@ -626,11 +636,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
   const handleSaveStudentProgress = async (uid: string) => {
     const prog = studentProgress[uid];
-    if (!prog) return;
+    if (!prog?.module_title) { toast.error('Selecione um módulo.'); return; }
     setIsLoading(true);
     try {
-      await firebaseService.upsertStudentEnrollment(uid, prog);
-      toast.success('Matrícula atualizada.');
+      await firebaseService.upsertStudentEnrollment(uid, { ...prog, enrolled_by: prog.enrolled_by || email || 'Admin' });
+      const updated = await firebaseService.getStudentEnrollmentByUid(uid);
+      setStudentEnrollments(prev => ({ ...prev, [uid]: updated ?? null }));
+      toast.success('Matrícula salva.');
     } catch { toast.error('Erro ao salvar matrícula.'); }
     finally { setIsLoading(false); }
   };
@@ -663,106 +675,122 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
   if (!auth) {
     return (
-      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex items-center justify-center p-4">
-        <Toaster theme="dark" position="top-center" />
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="glass-panel p-10 rounded-[2.5rem] w-full max-w-md text-center border-cyan-500/30 shadow-[0_0_80px_rgba(34,211,238,0.15)] relative overflow-hidden"
-        >
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
-          <div className="w-20 h-20 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-cyan-500/20">
-            <Lock className="w-10 h-10 text-cyan-400" />
-          </div>
-          <h2 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Acesso Restrito</h2>
-          <p className="text-muted-foreground mb-8">Acesse o painel administrativo com suas credenciais do Supabase.</p>
-          
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-4">
-              <div className="relative">
-                <input 
-                  type="email" 
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="E-mail Administrativo" 
-                  className="w-full bg-black/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-center text-lg"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="relative">
-                <input 
-                  type="password" 
-                  value={pwd}
-                  onChange={e => setPwd(e.target.value)}
-                  placeholder="Senha" 
-                  className="w-full bg-black/50 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-center text-lg tracking-widest"
-                  required
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={isLoading} className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-lg py-7 rounded-2xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.5)] transition-all whimsy-hover">
-              {isLoading ? 'Autenticando...' : 'Entrar no Painel'}
-            </Button>
-          </form>
+      <div className="fixed inset-0 z-[100] bg-white flex">
+        <Toaster theme="light" position="top-center" />
+        <div className="w-full flex flex-col justify-center px-8 sm:px-16 md:px-24 relative">
           <button
-            type="button"
-            onClick={() => setShowRecovery(v => !v)}
-            className="mt-6 text-xs text-gray-600 hover:text-cyan-400 transition-colors"
+            onClick={onClose}
+            className="absolute top-8 left-8 flex items-center gap-2 text-gray-400 hover:text-gray-900 transition-colors text-sm"
           >
-            {showRecovery ? 'Cancelar recuperação' : 'Não consigo acessar minha conta'}
+            <ChevronLeft className="w-4 h-4" /> Voltar ao site
           </button>
 
-          {showRecovery && (
-            <div className="mt-6 p-5 rounded-2xl bg-orange-500/5 border border-orange-500/20 text-left">
-              <p className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-4">Redefinir acesso — borbaggabriel@gmail.com</p>
-              <div className="space-y-3">
-                <input
-                  type="password"
-                  value={recoveryPwd}
-                  onChange={e => setRecoveryPwd(e.target.value)}
-                  placeholder="Nova senha (mínimo 6 caracteres)"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-400 transition-colors text-sm"
-                />
-                <input
-                  type="password"
-                  value={recoveryPwdConfirm}
-                  onChange={e => setRecoveryPwdConfirm(e.target.value)}
-                  placeholder="Confirmar nova senha"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-400 transition-colors text-sm"
-                />
-                <button
-                  type="button"
-                  disabled={isResetting || recoveryPwd.length < 6 || recoveryPwd !== recoveryPwdConfirm}
-                  onClick={async () => {
-                    if (recoveryPwd !== recoveryPwdConfirm) { toast.error('As senhas não coincidem.'); return; }
-                    setIsResetting(true);
-                    try {
-                      await firebaseService.resetAdminAccess('borbaggabriel@gmail.com', recoveryPwd);
-                      toast.success('Conta admin redefinida! Faça login agora.');
-                      setEmail('borbaggabriel@gmail.com');
-                      setPwd(recoveryPwd);
-                      setShowRecovery(false);
-                      setRecoveryPwd('');
-                      setRecoveryPwdConfirm('');
-                    } catch (err: any) {
-                      toast.error(err.message || 'Erro ao redefinir acesso.');
-                    } finally {
-                      setIsResetting(false);
-                    }
-                  }}
-                  className="w-full py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isResetting ? 'Redefinindo...' : 'Redefinir e Preparar Login'}
-                </button>
-              </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md w-full mx-auto"
+          >
+            <div className="mb-10">
+              <h2 className="text-2xl text-gray-900 mb-2 font-display tracking-tight">Painel Administrativo</h2>
+              <p className="text-gray-500 text-sm">Acesse com suas credenciais de administrador.</p>
             </div>
-          )}
 
-          <button onClick={onClose} className="mt-6 text-sm text-muted-foreground hover:text-white transition-colors">
-            ← Voltar ao site
-          </button>
-        </motion.div>
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-sm text-gray-600">E-mail</label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="admin@email.com"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 transition-colors text-sm"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-gray-600">Senha</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />
+                  <input
+                    type="password"
+                    value={pwd}
+                    onChange={e => setPwd(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 transition-colors text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-6 text-sm rounded-xl bg-gray-900 hover:bg-gray-800 text-white transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Autenticando...' : 'Entrar no Painel'}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => setShowRecovery(v => !v)}
+              className="mt-6 text-xs text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              {showRecovery ? 'Cancelar recuperação' : 'Não consigo acessar minha conta'}
+            </button>
+
+            {showRecovery && (
+              <div className="mt-6 p-5 rounded-xl bg-gray-50 border border-gray-200 text-left">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-4">Redefinir acesso — borbaggabriel@gmail.com</p>
+                <div className="space-y-3">
+                  <input
+                    type="password"
+                    value={recoveryPwd}
+                    onChange={e => setRecoveryPwd(e.target.value)}
+                    placeholder="Nova senha (mínimo 6 caracteres)"
+                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors text-sm"
+                  />
+                  <input
+                    type="password"
+                    value={recoveryPwdConfirm}
+                    onChange={e => setRecoveryPwdConfirm(e.target.value)}
+                    placeholder="Confirmar nova senha"
+                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={isResetting || recoveryPwd.length < 6 || recoveryPwd !== recoveryPwdConfirm}
+                    onClick={async () => {
+                      if (recoveryPwd !== recoveryPwdConfirm) { toast.error('As senhas não coincidem.'); return; }
+                      setIsResetting(true);
+                      try {
+                        await firebaseService.resetAdminAccess('borbaggabriel@gmail.com', recoveryPwd);
+                        toast.success('Conta admin redefinida! Faça login agora.');
+                        setEmail('borbaggabriel@gmail.com');
+                        setPwd(recoveryPwd);
+                        setShowRecovery(false);
+                        setRecoveryPwd('');
+                        setRecoveryPwdConfirm('');
+                      } catch (err: any) {
+                        toast.error(err.message || 'Erro ao redefinir acesso.');
+                      } finally {
+                        setIsResetting(false);
+                      }
+                    }}
+                    className="w-full py-3 rounded-xl bg-gray-900 hover:bg-gray-700 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isResetting ? 'Redefinindo...' : 'Redefinir e Preparar Login'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -773,26 +801,26 @@ export function AdminPanel({ data, onSave, onClose }: any) {
   ) || [];
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#050505] flex overflow-hidden text-foreground font-sans">
-      <Toaster theme="dark" position="top-right" />
+    <div className="fixed inset-0 z-[100] bg-[#f4f5f7] flex overflow-hidden font-sans">
+      <Toaster theme="light" position="top-right" />
 
       {/* Confirm Modal */}
       <AnimatePresence>
         {confirmModal && (
-          <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#111] border border-white/10 p-8 rounded-3xl max-w-sm w-full shadow-2xl"
+              className="bg-white border border-gray-200 p-8 rounded-3xl max-w-sm w-full shadow-2xl"
             >
-              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 mb-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-500 mb-6">
                 <AlertCircle className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{confirmModal.title}</h3>
-              <p className="text-muted-foreground mb-8">{confirmModal.desc}</p>
+              <h3 className="text-xl text-gray-900 mb-2">{confirmModal.title}</h3>
+              <p className="text-gray-500 mb-8">{confirmModal.desc}</p>
               <div className="flex gap-4">
-                <Button onClick={() => setConfirmModal(null)} variant="outline" className="flex-1 border-white/10 text-white hover:bg-white/5 rounded-xl">
+                <Button onClick={() => setConfirmModal(null)} variant="outline" className="flex-1 border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl">
                   Cancelar
                 </Button>
                 <Button onClick={confirmModal.action} className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-xl">
@@ -806,27 +834,16 @@ export function AdminPanel({ data, onSave, onClose }: any) {
       
       {/* Loading Overlay */}
       {isLoading && !confirmModal && (
-        <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
+        <div className="fixed inset-0 z-[150] bg-white/70 backdrop-blur-[2px] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-            <p className="text-cyan-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">Sincronizando Dados...</p>
+            <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+            <p className="text-gray-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Sincronizando Dados...</p>
           </div>
         </div>
       )}
 
       {/* Sidebar */}
-      <div className="w-72 border-r border-white/5 bg-[#0a0a0a] flex flex-col shrink-0 relative z-20 shadow-2xl">
-        <div className="p-8 border-b border-white/5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
-              <Lock className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-white font-display tracking-tight leading-none">Admin<span className="text-cyan-400">Pro</span></h2>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Command Center</p>
-            </div>
-          </div>
-        </div>
+      <div className="w-72 border-r border-gray-200 bg-white flex flex-col shrink-0 relative z-20 shadow-sm">
         
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
           {tabs.map((tab) => {
@@ -836,33 +853,32 @@ export function AdminPanel({ data, onSave, onClose }: any) {
               <button 
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)} 
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-medium relative group ${isActive ? 'text-cyan-400' : 'text-muted-foreground hover:text-white'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all font-medium relative group ${isActive ? 'text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
               >
                 {isActive && (
                   <motion.div 
                     layoutId="activeTab" 
-                    className="absolute inset-0 bg-cyan-500/10 border border-cyan-500/20 rounded-xl"
+                    className="absolute inset-0 bg-gray-100 border border-gray-200 rounded-xl"
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   />
                 )}
-                <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-cyan-400' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-700'}`} />
                 <span className="relative z-10">{tab.label}</span>
               </button>
             );
           })}
         </div>
         
-        <div className="p-6 border-t border-white/5 bg-black/20">
-          <Button onClick={handleLogout} variant="outline" className="w-full border-white/10 text-white hover:bg-white/5 rounded-xl py-6 whimsy-hover">
+        <div className="p-6 border-t border-gray-100 bg-gray-50">
+          <Button onClick={handleLogout} variant="outline" className="w-full border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-red-600 rounded-xl py-6">
             <LogOut className="w-4 h-4 mr-2" /> Sair do Painel
           </Button>
         </div>
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden relative bg-[#0a0a0a]">
+      <div className="flex-1 flex flex-col overflow-hidden relative bg-[#f4f5f7]">
         {/* Ambient Background */}
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-cyan-900/10 to-transparent pointer-events-none"></div>
         
 
         <div className="flex-1 overflow-y-auto p-8 md:p-12 relative z-10">
@@ -880,7 +896,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Visão Geral</h3>
+                    <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Visão Geral</h3>
                     <p className="text-muted-foreground">Métricas e status atual da sua plataforma de dublagem.</p>
                   </div>
                   
@@ -890,67 +906,33 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                     const activeStudents = (draft.students || []).filter((s: any) => s.status !== 'inativo').length;
                     return (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <button onClick={() => setActiveTab('students')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-blue-500/20 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors"></div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                          <GraduationCap className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground font-medium">Total de Alunos</p>
-                          <h4 className="text-3xl font-bold text-white">{draft.students?.length || 0}</h4>
-                        </div>
+                    <button onClick={() => setActiveTab('students')} className="glass-panel p-6 rounded-3xl border-gray-100 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden group text-left hover:border-gray-200 transition-colors">
+                      <div className="mb-4">
+                        <p className="text-sm text-black">Total de Alunos</p>
+                        <h4 className="text-5xl text-black mt-1">{draft.students?.length || 0}</h4>
                       </div>
-                      <div className="flex items-center text-xs text-blue-400 font-medium">
-                        <Activity className="w-3 h-3 mr-1" /> {activeStudents} ativo(s)
-                      </div>
+                      <p className="text-xs text-black">{activeStudents} ativo(s)</p>
                     </button>
 
-                    <button onClick={() => setActiveTab('enrollments')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-cyan-500/20 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors"></div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                          <ClipboardList className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground font-medium">Novas Matrículas</p>
-                          <h4 className="text-3xl font-bold text-white">{draft.enrollments?.length || 0}</h4>
-                        </div>
+                    <button onClick={() => setActiveTab('enrollments')} className="glass-panel p-6 rounded-3xl border-gray-100 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden group text-left hover:border-gray-200 transition-colors">
+                      <div className="mb-4">
+                        <p className="text-sm text-black">Novas Matrículas</p>
+                        <h4 className="text-5xl text-black mt-1">{draft.enrollments?.length || 0}</h4>
                       </div>
-                      <div className={`flex items-center text-xs font-medium ${pendingEnrollments > 0 ? 'text-yellow-400' : 'text-cyan-400'}`}>
-                        <AlertCircle className="w-3 h-3 mr-1" /> {pendingEnrollments > 0 ? `${pendingEnrollments} pendente(s)` : 'Todas processadas'}
-                      </div>
+                      <p className="text-xs text-black">{pendingEnrollments > 0 ? `${pendingEnrollments} pendente(s)` : 'Todas processadas'}</p>
                     </button>
 
-                    <button onClick={() => setActiveTab('suporte')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-orange-500/20 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-colors"></div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-400">
-                          <Headphones className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground font-medium">Tickets Abertos</p>
-                          <h4 className="text-3xl font-bold text-white">{openTickets}</h4>
-                        </div>
+                    <button onClick={() => setActiveTab('suporte')} className="glass-panel p-6 rounded-3xl border-gray-100 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden group text-left hover:border-gray-200 transition-colors">
+                      <div className="mb-4">
+                        <p className="text-sm text-black">Tickets Abertos</p>
+                        <h4 className="text-5xl text-black mt-1">{openTickets}</h4>
                       </div>
-                      <div className={`flex items-center text-xs font-medium ${openTickets > 0 ? 'text-orange-400' : 'text-green-400'}`}>
-                        {openTickets > 0 ? <><AlertCircle className="w-3 h-3 mr-1" /> Aguardando resposta</> : <><CheckCircle2 className="w-3 h-3 mr-1" /> Tudo resolvido</>}
-                      </div>
+                      <p className="text-xs text-black">{openTickets > 0 ? 'Aguardando resposta' : 'Tudo resolvido'}</p>
                     </button>
 
-                    <button onClick={() => setActiveTab('comunicados')} className="glass-panel p-6 rounded-3xl border-white/5 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group text-left hover:border-purple-500/20 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-colors"></div>
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                          <Megaphone className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground font-medium">Enviar Comunicado</p>
-                          <h4 className="text-lg font-bold text-white mt-1">Todos os alunos</h4>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-xs text-purple-400 font-medium">
-                        <Radio className="w-3 h-3 mr-1" /> {draft.students?.length || 0} destinatário(s)
+                    <button onClick={() => setActiveTab('comunicados')} className="glass-panel p-6 rounded-3xl border-gray-100 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden group text-left hover:border-gray-200 transition-colors">
+                      <div className="mb-4">
+                        <h4 className="text-2xl text-black mt-1">ENVIAR COMUNICADO</h4>
                       </div>
                     </button>
                   </div>
@@ -958,10 +940,10 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   })()}
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5">
+                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-gray-100">
                       <div className="flex items-center justify-between mb-8">
-                        <h4 className="text-xl font-bold text-white font-display">Crescimento de Alunos</h4>
-                        <select className="bg-black/50 border border-white/10 rounded-lg px-3 py-1 text-sm text-muted-foreground focus:outline-none">
+                        <h4 className="text-xl text-gray-900 font-display">Crescimento de Alunos</h4>
+                        <select className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1 text-sm text-muted-foreground focus:outline-none">
                           <option>Últimos 6 meses</option>
                           <option>Este ano</option>
                         </select>
@@ -970,7 +952,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       <div className="h-64 flex items-end justify-between gap-2">
                         {[40, 60, 45, 80, 65, 100].map((height, i) => (
                           <div key={i} className="w-full flex flex-col items-center gap-2 group">
-                            <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-full flex items-end">
+                            <div className="w-full bg-gray-100 rounded-t-lg relative overflow-hidden h-full flex items-end">
                               <motion.div 
                                 initial={{ height: 0 }}
                                 animate={{ height: `${height}%` }}
@@ -984,15 +966,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     </div>
 
-                    <div className="glass-panel p-8 rounded-3xl border-white/5 flex flex-col">
-                      <h4 className="text-xl font-bold text-white mb-6 font-display">Atividade Recente</h4>
+                    <div className="glass-panel p-8 rounded-3xl border-gray-100 flex flex-col">
+                      <h4 className="text-xl text-gray-900 mb-6 font-display">Atividade Recente</h4>
                       <div className="flex-1 space-y-6 overflow-y-auto pr-2">
                         {draft.recentActivity?.map((activity: any) => (
                           <div key={activity.id} className="flex gap-4">
-                            <img src={activity.avatar} alt={activity.user} className="w-10 h-10 rounded-full border border-white/10" />
+                            <img src={activity.avatar} alt={activity.user} className="w-10 h-10 rounded-full border border-gray-200" />
                             <div>
-                              <p className="text-sm text-white">
-                                <span className="font-bold">{activity.user}</span> {activity.action} <span className="text-cyan-400">{activity.target}</span>
+                              <p className="text-sm text-gray-900">
+                                <span className="font-bold">{activity.user}</span> {activity.action} <span className="text-gray-600">{activity.target}</span>
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
                             </div>
@@ -1015,15 +997,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Solicitações de Matrícula</h3>
+                    <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Solicitações de Matrícula</h3>
                     <p className="text-muted-foreground">Interessados que preencheram o formulário no site.</p>
                   </div>
 
-                  <div className="glass-panel rounded-3xl border-white/5 overflow-hidden">
+                  <div className="glass-panel rounded-3xl border-gray-100 overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-white/[0.02] border-b border-white/5">
+                          <tr className="bg-white/[0.02] border-b border-gray-100">
                             <th className="p-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Interessado</th>
                             <th className="p-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Curso de Interesse</th>
                             <th className="p-5 text-xs font-bold text-gray-400 uppercase tracking-wider">Contato</th>
@@ -1035,17 +1017,17 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         <tbody>
                           {draft.enrollments && draft.enrollments.length > 0 ? (
                             draft.enrollments.map((enrollment: any, index: number) => (
-                              <tr key={enrollment.id || index} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                              <tr key={enrollment.id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors group">
                                 <td className="p-5">
-                                  <div className="font-bold text-white">{enrollment.name}</div>
+                                  <div className="text-gray-900">{enrollment.name}</div>
                                   <div className="text-xs text-muted-foreground">{enrollment.email}</div>
                                 </td>
                                 <td className="p-5">
-                                  <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/20">
+                                  <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">
                                     {enrollment.module || 'Não especificado'}
                                   </span>
                                 </td>
-                                <td className="p-5 text-sm text-gray-300">
+                                <td className="p-5 text-sm text-gray-500">
                                   {enrollment.phone}
                                 </td>
                                 <td className="p-5 text-sm text-muted-foreground">
@@ -1055,12 +1037,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                   <select 
                                     value={enrollment.status} 
                                     onChange={e => handleEnrollmentStatusChange(index, enrollment.id, e.target.value)}
-                                    className={`bg-transparent border-none font-bold text-xs focus:ring-1 focus:ring-cyan-400 rounded px-2 py-1 appearance-none cursor-pointer ${enrollment.status === 'Pendente' ? 'text-yellow-400' : enrollment.status === 'Contatado' ? 'text-blue-400' : 'text-green-400'}`}
+                                    className={`bg-transparent border-none font-bold text-xs focus:ring-1 focus:ring-gray-400 rounded px-2 py-1 appearance-none cursor-pointer ${enrollment.status === 'Pendente' ? 'text-gray-700' : enrollment.status === 'Contatado' ? 'text-gray-700' : 'text-gray-700'}`}
                                   >
-                                    <option className="bg-[#111]" value="Pendente">Pendente</option>
-                                    <option className="bg-[#111]" value="Contatado">Contatado</option>
-                                    <option className="bg-[#111]" value="Matriculado">Matriculado</option>
-                                    <option className="bg-[#111]" value="Desistiu">Desistiu</option>
+                                    <option className="bg-white" value="Pendente">Pendente</option>
+                                    <option className="bg-white" value="Contatado">Contatado</option>
+                                    <option className="bg-white" value="Matriculado">Matriculado</option>
+                                    <option className="bg-white" value="Desistiu">Desistiu</option>
                                   </select>
                                 </td>
                                 <td className="p-5 text-right">
@@ -1070,7 +1052,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                         const msg = `Olá ${enrollment.name}, vi seu interesse no curso de dublagem (${enrollment.module}). Podemos conversar?`;
                                         window.open(`https://wa.me/${enrollment.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
                                       }}
-                                      className="p-2 rounded-lg text-green-500 hover:bg-green-500/10 transition-colors"
+                                      className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
                                       title="Contatar via WhatsApp"
                                     >
                                       <MessageSquare className="w-4 h-4" />
@@ -1123,6 +1105,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         const msgs = studentMessages[uid] || [];
                         const invs = studentInvoices[uid] || [];
                         const prog = studentProgress[uid];
+                        const savedEnrollment = studentEnrollments[uid];
                         return (
                           <motion.div
                             key="detail"
@@ -1136,7 +1119,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             <div className="flex items-center justify-between gap-4 flex-wrap">
                               <button
                                 onClick={() => setSelectedStudentId(null)}
-                                className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors font-medium"
+                                className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-900 transition-colors font-medium"
                               >
                                 <ChevronLeft className="w-4 h-4" /> Voltar para alunos
                               </button>
@@ -1149,19 +1132,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             </div>
 
                             {/* Student info card */}
-                            <div className="glass-panel p-6 rounded-3xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                              <img
-                                src={student?.avatar}
-                                alt={student?.name}
-                                className="w-16 h-16 rounded-full border-2 border-white/10 shrink-0 object-cover"
-                              />
+                            <div className="glass-panel p-6 rounded-3xl border-gray-100 flex flex-col sm:flex-row items-start sm:items-center gap-5">
                               <div className="flex-1 min-w-0">
-                                <h3 className="text-2xl font-black text-white font-display tracking-tight">{student?.name}</h3>
+                                <h3 className="text-2xl font-normal text-gray-900 font-display tracking-tight">{student?.name}</h3>
                                 <p className="text-muted-foreground text-sm mt-0.5">{student?.email}</p>
                               </div>
                               <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                                (student?.status || 'Ativo') === 'Ativo' ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                : (student?.status) === 'Formado' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                (student?.status || 'Ativo') === 'Ativo' ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                                : (student?.status) === 'Formado' ? 'bg-gray-100 text-gray-700 border border-gray-200'
                                 : 'bg-red-500/10 text-red-400 border border-red-500/20'
                               }`}>
                                 {student?.status || 'Ativo'}
@@ -1169,8 +1147,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             </div>
 
                             {/* Sub-tabs panel */}
-                            <div className="glass-panel rounded-3xl border-white/5 overflow-hidden">
-                              <div className="flex gap-1 px-5 pt-4 border-b border-white/5 overflow-x-auto">
+                            <div className="glass-panel rounded-3xl border-gray-100 overflow-hidden">
+                              <div className="flex gap-1 px-5 pt-4 border-b border-gray-100 overflow-x-auto">
                                 {[
                                   { id: 'matricula', label: 'Matrícula', icon: BookOpen },
                                   { id: 'mensagens', label: 'Mensagens', icon: MessageSquare },
@@ -1181,7 +1159,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                   <button
                                     key={t.id}
                                     onClick={() => setStudentSubTab(p => ({ ...p, [uid]: t.id }))}
-                                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${subTab === t.id ? 'border-cyan-400 text-cyan-400' : 'border-transparent text-gray-500 hover:text-white'}`}
+                                    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${subTab === t.id ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
                                   >
                                     <t.icon className="w-4 h-4" /> {t.label}
                                   </button>
@@ -1191,22 +1169,21 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               <div className="p-6 space-y-4">
                                 {/* MATRÍCULA */}
                                 {subTab === 'matricula' && (
-                                  <div className="space-y-4">
-                                    <p className="text-sm text-gray-400">Defina o módulo atual, status e progresso do aluno no Portal do Aluno.</p>
+                                  <div className="space-y-5">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                       <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Módulo Atual</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Módulo</label>
                                         <select
                                           value={prog?.module_title || ''}
                                           onChange={e => {
                                             const mod = draft.modules?.find((m: any) => m.title === e.target.value);
-                                            setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], module_title: e.target.value, module_slug: mod?.slug || '', status: p[uid]?.status || 'Ativo', progress: p[uid]?.progress || 0 } }));
+                                            setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], module_title: e.target.value, module_slug: mod?.slug || '', status: p[uid]?.status || 'Ativo', validity: p[uid]?.validity || '', enrolled_by: p[uid]?.enrolled_by || '' } }));
                                           }}
-                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all appearance-none"
                                         >
-                                          <option value="" className="bg-[#111]">Selecione</option>
-                                          {draft.modules?.map((m: any) => (
-                                            <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
+                                          <option value="" className="bg-white">Selecione</option>
+                                          {draft.modules?.map((m: any, i: number) => (
+                                            <option key={`${m.slug || m.title}-${i}`} value={m.title} className="bg-white">{m.title}</option>
                                           ))}
                                         </select>
                                       </div>
@@ -1214,28 +1191,62 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
                                         <select
                                           value={prog?.status || 'Ativo'}
-                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], status: e.target.value, module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', progress: p[uid]?.progress || 0 } }))}
-                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], status: e.target.value, module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', validity: p[uid]?.validity || '', enrolled_by: p[uid]?.enrolled_by || '' } }))}
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all appearance-none"
                                         >
-                                          <option className="bg-[#111]" value="Ativo">Ativo</option>
-                                          <option className="bg-[#111]" value="Inativo">Inativo</option>
-                                          <option className="bg-[#111]" value="Trancado">Trancado</option>
-                                          <option className="bg-[#111]" value="Formado">Formado</option>
+                                          <option className="bg-white" value="Ativo">Ativo</option>
+                                          <option className="bg-white" value="Inativo">Inativo</option>
+                                          <option className="bg-white" value="Trancado">Trancado</option>
+                                          <option className="bg-white" value="Formado">Formado</option>
                                         </select>
                                       </div>
                                       <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Progresso ({prog?.progress || 0}%)</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Vigência</label>
                                         <input
-                                          type="range" min={0} max={100}
-                                          value={prog?.progress || 0}
-                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], progress: Number(e.target.value), module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', status: p[uid]?.status || 'Ativo' } }))}
-                                          className="w-full accent-cyan-400 mt-3"
+                                          type="date"
+                                          value={prog?.validity || ''}
+                                          onChange={e => setStudentProgress(p => ({ ...p, [uid]: { ...p[uid], validity: e.target.value, module_title: p[uid]?.module_title || '', module_slug: p[uid]?.module_slug || '', status: p[uid]?.status || 'Ativo', enrolled_by: p[uid]?.enrolled_by || '' } }))}
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                         />
                                       </div>
                                     </div>
-                                    <Button onClick={() => handleSaveStudentProgress(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
-                                      Salvar Matrícula
+                                    <Button onClick={() => handleSaveStudentProgress(uid)} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover">
+                                      {isLoading ? 'Salvando...' : savedEnrollment ? 'Atualizar Matrícula' : 'Adicionar Matrícula'}
                                     </Button>
+
+                                    {savedEnrollment && (
+                                      <div className="space-y-2 pt-2">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Matrícula Registrada</p>
+                                        <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+                                          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">ID</p>
+                                              <p className="text-xs text-gray-900 font-mono truncate">{savedEnrollment.id}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Módulo</p>
+                                              <p className="text-xs text-gray-900 truncate">{savedEnrollment.module}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Data de Matrícula</p>
+                                              <p className="text-xs text-gray-900">{savedEnrollment.created_at ? new Date(savedEnrollment.created_at).toLocaleDateString('pt-BR') : savedEnrollment.updated_at ? new Date(savedEnrollment.updated_at).toLocaleDateString('pt-BR') : '—'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Vigência</p>
+                                              <p className="text-xs text-gray-900">{savedEnrollment.validity ? new Date(savedEnrollment.validity).toLocaleDateString('pt-BR') : '—'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Status</p>
+                                              <p className="text-xs text-gray-900">{savedEnrollment.status}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Matriculado por</p>
+                                              <p className="text-xs text-gray-900 truncate">{savedEnrollment.enrolled_by || '—'}</p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
 
@@ -1250,7 +1261,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                           value={newMessage[uid]?.title || ''}
                                           onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, body: p[uid]?.body || '' } }))}
                                           placeholder="Ex: Lembrete da próxima aula"
-                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                         />
                                       </div>
                                       <div>
@@ -1259,10 +1270,10 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                           value={newMessage[uid]?.body || ''}
                                           onChange={e => setNewMessage(p => ({ ...p, [uid]: { ...p[uid], body: e.target.value, title: p[uid]?.title || '' } }))}
                                           placeholder="Escreva o aviso para o aluno..."
-                                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-24"
+                                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all resize-none h-24"
                                         />
                                       </div>
-                                      <Button onClick={() => handleSendMessage(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                      <Button onClick={() => handleSendMessage(uid)} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover">
                                         Enviar Mensagem
                                       </Button>
                                     </div>
@@ -1270,9 +1281,9 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                       <div className="space-y-2 mt-4">
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Histórico de Mensagens</p>
                                         {msgs.map((msg: any) => (
-                                          <div key={msg.id} className="flex items-start gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
+                                          <div key={msg.id} className="flex items-start gap-3 p-4 rounded-xl bg-gray-100 border border-gray-100">
                                             <div className="flex-1">
-                                              <p className="text-sm font-bold text-white">{msg.title}</p>
+                                              <p className="text-sm text-gray-900">{msg.title}</p>
                                               <p className="text-xs text-gray-400 mt-1">{msg.body}</p>
                                             </div>
                                             <button onClick={() => handleDeleteStudentMessage(uid, msg.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0">
@@ -1294,44 +1305,44 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                         value={newInvoice[uid]?.description || ''}
                                         onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, amount: p[uid]?.amount || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
                                         placeholder="Descrição (ex: Mensalidade Jun/25)"
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all md:col-span-2"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all md:col-span-2"
                                       />
                                       <input
                                         type="text"
                                         value={newInvoice[uid]?.amount || ''}
                                         onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], amount: e.target.value, description: p[uid]?.description || '', due_date: p[uid]?.due_date || '', status: p[uid]?.status || 'Pendente' } }))}
                                         placeholder="Valor (R$ 450,00)"
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                       />
                                       <input
                                         type="date"
                                         value={newInvoice[uid]?.due_date || ''}
                                         onChange={e => setNewInvoice(p => ({ ...p, [uid]: { ...p[uid], due_date: e.target.value, description: p[uid]?.description || '', amount: p[uid]?.amount || '', status: p[uid]?.status || 'Pendente' } }))}
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                       />
                                     </div>
-                                    <Button onClick={() => handleAddInvoice(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                    <Button onClick={() => handleAddInvoice(uid)} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover">
                                       <Plus className="w-4 h-4 mr-2" /> Adicionar Fatura
                                     </Button>
                                     {invs.length > 0 && (
                                       <div className="space-y-2 mt-2">
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Faturas do Aluno</p>
                                         {invs.map((inv: any) => (
-                                          <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/5">
+                                          <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl bg-gray-100 border border-gray-100">
                                             <div className="flex-1 min-w-0">
-                                              <p className="text-sm font-bold text-white truncate">{inv.description}</p>
+                                              <p className="text-sm text-gray-900 truncate">{inv.description}</p>
                                               <p className="text-xs text-gray-400">{inv.amount} · Vence {inv.due_date}</p>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                               <select
                                                 value={inv.status}
                                                 onChange={e => handleUpdateInvoiceStatus(uid, inv.id, e.target.value)}
-                                                className={`bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold appearance-none focus:outline-none ${inv.status === 'Pago' ? 'text-green-400' : inv.status === 'Pendente' ? 'text-yellow-400' : 'text-gray-400'}`}
+                                                className={`bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-bold appearance-none focus:outline-none ${inv.status === 'Pago' ? 'text-gray-700' : inv.status === 'Pendente' ? 'text-gray-700' : 'text-gray-400'}`}
                                               >
-                                                <option className="bg-[#111]" value="Pendente">Pendente</option>
-                                                <option className="bg-[#111]" value="Pago">Pago</option>
-                                                <option className="bg-[#111]" value="A Vencer">A Vencer</option>
-                                                <option className="bg-[#111]" value="Vencido">Vencido</option>
+                                                <option className="bg-white" value="Pendente">Pendente</option>
+                                                <option className="bg-white" value="Pago">Pago</option>
+                                                <option className="bg-white" value="A Vencer">A Vencer</option>
+                                                <option className="bg-white" value="Vencido">Vencido</option>
                                               </select>
                                               <button onClick={() => handleDeleteInvoice(uid, inv.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
                                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1354,29 +1365,29 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                         value={newAgendaItem[uid]?.title || ''}
                                         onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], title: e.target.value, date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
                                         placeholder="Título (ex: Aula 12 — Lip-sync)"
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                       />
                                       <input
                                         type="date"
                                         value={newAgendaItem[uid]?.date || ''}
                                         onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], date: e.target.value, title: p[uid]?.title || '', time: p[uid]?.time || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                       />
                                       <input
                                         type="time"
                                         value={newAgendaItem[uid]?.time || ''}
                                         onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], time: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', description: p[uid]?.description || '', type: p[uid]?.type || 'Aula' } }))}
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                       />
                                       <select
                                         value={newAgendaItem[uid]?.type || 'Aula'}
                                         onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], type: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', description: p[uid]?.description || '' } }))}
-                                        className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                        className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all appearance-none"
                                       >
-                                        <option className="bg-[#111]" value="Aula">Aula</option>
-                                        <option className="bg-[#111]" value="Prova">Prova</option>
-                                        <option className="bg-[#111]" value="Banca">Banca</option>
-                                        <option className="bg-[#111]" value="Evento">Evento</option>
+                                        <option className="bg-white" value="Aula">Aula</option>
+                                        <option className="bg-white" value="Prova">Prova</option>
+                                        <option className="bg-white" value="Banca">Banca</option>
+                                        <option className="bg-white" value="Evento">Evento</option>
                                       </select>
                                     </div>
                                     <input
@@ -1384,18 +1395,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                       value={newAgendaItem[uid]?.description || ''}
                                       onChange={e => setNewAgendaItem(p => ({ ...p, [uid]: { ...p[uid], description: e.target.value, title: p[uid]?.title || '', date: p[uid]?.date || '', time: p[uid]?.time || '', type: p[uid]?.type || 'Aula' } }))}
                                       placeholder="Descrição opcional"
-                                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all"
+                                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all"
                                     />
-                                    <Button onClick={() => handleAddAgendaItem(uid)} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                    <Button onClick={() => handleAddAgendaItem(uid)} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover">
                                       <Plus className="w-4 h-4 mr-2" /> Adicionar Evento
                                     </Button>
                                     {(studentAgenda[uid] || []).length > 0 && (
                                       <div className="space-y-2 mt-2">
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Agenda do Aluno</p>
                                         {(studentAgenda[uid] || []).map((item: any) => (
-                                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                                          <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-100 border border-gray-100">
                                             <div className="flex-1">
-                                              <p className="text-sm font-bold text-white">{item.title}</p>
+                                              <p className="text-sm text-gray-900">{item.title}</p>
                                               <p className="text-xs text-gray-400">{item.date} às {item.time} · {item.type}</p>
                                             </div>
                                             <button onClick={() => handleDeleteAgendaItem(uid, item.id)} className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-colors">
@@ -1420,18 +1431,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                     ) : (
                                       <div className="space-y-4">
                                         {(studentSupport[uid] || []).map((ticket: any) => (
-                                          <div key={ticket.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
+                                          <div key={ticket.id} className="p-4 rounded-2xl bg-gray-100 border border-gray-100 space-y-3">
                                             <div className="flex items-start justify-between gap-2">
                                               <div>
-                                                <p className="font-bold text-white">{ticket.subject}</p>
+                                                <p className="text-gray-900">{ticket.subject}</p>
                                                 <p className="text-sm text-gray-400 mt-1">{ticket.message}</p>
                                               </div>
-                                              <span className={`px-2 py-1 rounded-full text-xs font-bold shrink-0 ${ ticket.status === 'Resolvido' ? 'bg-green-500/10 text-green-400' : ticket.status === 'Em Análise' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-blue-500/10 text-blue-400' }`}>{ticket.status}</span>
+                                              <span className={`px-2 py-1 rounded-full text-xs font-bold shrink-0 ${ 'bg-gray-100 text-gray-700' }`}>{ticket.status}</span>
                                             </div>
                                             {ticket.admin_reply && (
-                                              <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                                                <p className="text-xs text-cyan-400 font-bold mb-1">Resposta enviada:</p>
-                                                <p className="text-xs text-gray-300">{ticket.admin_reply}</p>
+                                              <div className="p-3 rounded-lg bg-gray-100 border border-gray-200">
+                                                <p className="text-xs text-gray-700 font-bold mb-1">Resposta enviada:</p>
+                                                <p className="text-xs text-gray-500">{ticket.admin_reply}</p>
                                               </div>
                                             )}
                                             <div className="space-y-2">
@@ -1439,11 +1450,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                                 value={supportReply[ticket.id] || ''}
                                                 onChange={e => setSupportReply(p => ({ ...p, [ticket.id]: e.target.value }))}
                                                 placeholder="Escreva sua resposta..."
-                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-20"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all resize-none h-20"
                                               />
                                               <div className="flex gap-2">
-                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Em Análise')} size="sm" className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/20 rounded-lg">Em Análise</Button>
-                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Resolvido')} size="sm" className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/20 rounded-lg">Resolver</Button>
+                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Em Análise')} size="sm" className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-lg">
+                                                  Em Análise
+                                                </Button>
+                                                <Button onClick={() => handleReplySupportTicket(ticket.id, uid, 'Resolvido')} size="sm" className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-lg">
+                                                  Resolver
+                                                </Button>
                                               </div>
                                             </div>
                                           </div>
@@ -1470,7 +1485,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         {/* Header */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div>
-                            <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Alunos</h3>
+                            <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Alunos</h3>
                             <p className="text-muted-foreground">Clique em um aluno para gerenciar seu portal completo.</p>
                           </div>
                           <div className="flex items-center gap-3">
@@ -1481,12 +1496,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                 value={searchStudent}
                                 onChange={e => setSearchStudent(e.target.value)}
                                 placeholder="Buscar aluno..."
-                                className="bg-black/50 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-400 transition-colors w-full md:w-64"
+                                className="bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-gray-400 transition-colors w-full md:w-64"
                               />
                             </div>
                             <Button
                               onClick={() => setIsCreatingStudent(v => !v)}
-                              className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover shrink-0"
+                              className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover shrink-0"
                             >
                               <Plus className="w-4 h-4 mr-2" /> Novo Aluno
                             </Button>
@@ -1502,25 +1517,25 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               exit={{ opacity: 0, height: 0 }}
                               className="overflow-hidden"
                             >
-                              <form onSubmit={handleCreateStudent} className="glass-panel p-8 rounded-3xl border-cyan-500/20 bg-cyan-500/5 space-y-6">
+                              <form onSubmit={handleCreateStudent} className="glass-panel p-8 rounded-3xl border-gray-200 bg-gray-50 space-y-6">
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                                  <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700">
                                     <GraduationCap className="w-4 h-4" />
                                   </div>
-                                  <h4 className="text-lg font-bold text-white">Criar Conta de Aluno</h4>
+                                  <h4 className="text-lg text-gray-900">Criar Conta de Aluno</h4>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nome Completo</label>
-                                    <input type="text" value={newStudent.full_name} onChange={e => setNewStudent(p => ({ ...p, full_name: e.target.value }))} placeholder="Ana Silva" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
+                                    <input type="text" value={newStudent.full_name} onChange={e => setNewStudent(p => ({ ...p, full_name: e.target.value }))} placeholder="Ana Silva" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all" required />
                                   </div>
                                   <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">E-mail</label>
-                                    <input type="email" value={newStudent.email} onChange={e => setNewStudent(p => ({ ...p, email: e.target.value }))} placeholder="ana@email.com" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required />
+                                    <input type="email" value={newStudent.email} onChange={e => setNewStudent(p => ({ ...p, email: e.target.value }))} placeholder="ana@email.com" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all" required />
                                   </div>
                                   <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Senha de Acesso</label>
-                                    <input type="text" value={newStudent.password} onChange={e => setNewStudent(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all" required minLength={6} />
+                                    <input type="text" value={newStudent.password} onChange={e => setNewStudent(p => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all" required minLength={6} />
                                   </div>
                                   <div>
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Módulo Inicial</label>
@@ -1530,21 +1545,21 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                         const mod = draft.modules?.find((m: any) => m.title === e.target.value);
                                         setNewStudent(p => ({ ...p, module_title: e.target.value, module_slug: mod?.slug || '' }));
                                       }}
-                                      className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all appearance-none"
+                                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all appearance-none"
                                       required
                                     >
                                       <option value="">Selecione um módulo</option>
-                                      {draft.modules?.map((m: any) => (
-                                        <option key={m.slug || m.title} value={m.title} className="bg-[#111]">{m.title}</option>
+                                      {draft.modules?.map((m: any, i: number) => (
+                                        <option key={`${m.slug || m.title}-${i}`} value={m.title} className="bg-white">{m.title}</option>
                                       ))}
                                     </select>
                                   </div>
                                 </div>
                                 <div className="flex gap-3">
-                                  <Button type="submit" disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl whimsy-hover">
+                                  <Button type="submit" disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl whimsy-hover">
                                     {isLoading ? 'Criando...' : 'Criar Conta e Matricular'}
                                   </Button>
-                                  <Button type="button" onClick={() => setIsCreatingStudent(false)} variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl">
+                                  <Button type="button" onClick={() => setIsCreatingStudent(false)} variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-100 rounded-xl">
                                     Cancelar
                                   </Button>
                                 </div>
@@ -1556,7 +1571,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         {/* Student Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {filteredStudents.length === 0 ? (
-                            <div className="sm:col-span-2 lg:col-span-3 glass-panel p-12 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
+                            <div className="sm:col-span-2 lg:col-span-3 glass-panel p-12 rounded-3xl border-gray-100 flex flex-col items-center justify-center text-center">
                               <GraduationCap className="w-12 h-12 text-gray-600 mb-4" />
                               <p className="text-gray-400 font-medium">Nenhum aluno encontrado.</p>
                               <p className="text-gray-600 text-sm mt-1">Clique em "Novo Aluno" para criar a primeira conta.</p>
@@ -1570,24 +1585,19 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                   handleLoadAgendaAndSupport(student.id);
                                   setSelectedStudentId(student.id);
                                 }}
-                                className="glass-panel p-5 rounded-3xl border-white/5 hover:border-cyan-500/20 transition-all text-left group"
+                                className="glass-panel p-5 rounded-3xl border-gray-100 hover:border-gray-200 transition-all text-left group"
                               >
                                 <div className="flex items-center gap-3 mb-4">
-                                  <img src={student.avatar} alt={student.name} className="w-12 h-12 rounded-full border border-white/10 shrink-0 object-cover" />
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-white truncate">{student.name}</p>
+                                    <p className="text-gray-900 truncate">{student.name}</p>
                                     <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    (student.status || 'Ativo') === 'Ativo' ? 'bg-green-500/10 text-green-400'
-                                    : student.status === 'Formado' ? 'bg-purple-500/10 text-purple-400'
-                                    : 'bg-red-500/10 text-red-400'
-                                  }`}>
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold shrink-0 ${ 'bg-gray-100 text-gray-700' }`}>
                                     {student.status || 'Ativo'}
                                   </span>
-                                  <span className="text-xs text-gray-600 group-hover:text-cyan-400 transition-colors flex items-center gap-1">
+                                  <span className="text-xs text-gray-600 group-hover:text-gray-700 transition-colors flex items-center gap-1">
                                     Ver detalhes <ChevronRight className="w-3 h-3" />
                                   </span>
                                 </div>
@@ -1613,7 +1623,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Professores</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Professores</h3>
                       <p className="text-muted-foreground">Atualize a equipe de mestres e suas biografias.</p>
                     </div>
                     <Button 
@@ -1626,13 +1636,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {draft.teachers?.map((teacher: any, index: number) => (
-                      <div key={index} className="glass-panel p-6 rounded-3xl border-white/5 relative group flex flex-col">
+                      <div key={index} className="glass-panel p-6 rounded-3xl border-gray-100 relative group flex flex-col">
                         <div className="flex justify-between items-start mb-6">
                           <div className="flex items-center gap-4">
-                            <img src={teacher.photo} alt="Preview" className="w-16 h-16 rounded-2xl object-cover border border-white/10 shadow-lg" referrerPolicy="no-referrer" />
+                            <img src={teacher.photo} alt="Preview" className="w-16 h-16 rounded-2xl object-cover border border-gray-200 shadow-lg" referrerPolicy="no-referrer" />
                             <div>
-                              <h4 className="text-lg font-bold text-white font-display leading-tight">{teacher.name || 'Novo Professor'}</h4>
-                              <p className="text-sm text-cyan-400">{teacher.role}</p>
+                              <h4 className="text-lg text-gray-900 font-display leading-tight">{teacher.name || 'Novo Professor'}</h4>
+                              <p className="text-sm text-gray-700">{teacher.role}</p>
                             </div>
                           </div>
                           <button 
@@ -1647,26 +1657,26 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                         <div className="space-y-4 flex-1">
                           <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nome Completo</label>
-                            <input type="text" value={teacher.name} onChange={e => handleChange('teachers', index, 'name', e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:border-cyan-400 transition-all" />
+                            <input type="text" value={teacher.name} onChange={e => handleChange('teachers', index, 'name', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-gray-400 transition-all" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Função / Módulo</label>
-                            <input type="text" value={teacher.role} onChange={e => handleChange('teachers', index, 'role', e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:border-cyan-400 transition-all" />
+                            <input type="text" value={teacher.role} onChange={e => handleChange('teachers', index, 'role', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-gray-400 transition-all" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Biografia</label>
-                            <textarea value={teacher.bio} onChange={e => handleChange('teachers', index, 'bio', e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white h-20 focus:border-cyan-400 transition-all resize-none" />
+                            <textarea value={teacher.bio} onChange={e => handleChange('teachers', index, 'bio', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 h-20 focus:border-gray-500 transition-all resize-none" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">URL da Foto</label>
-                            <input type="text" value={teacher.photo} onChange={e => handleChange('teachers', index, 'photo', e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-white focus:border-cyan-400 transition-all" />
+                            <input type="text" value={teacher.photo} onChange={e => handleChange('teachers', index, 'photo', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:border-gray-400 transition-all" />
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('teachers')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('teachers')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -1686,7 +1696,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Banners Principais</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Banners Principais</h3>
                       <p className="text-muted-foreground">Edite os textos e imagens do carrossel inicial do site.</p>
                     </div>
                     <Button 
@@ -1699,15 +1709,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="space-y-6">
                     {draft.banners?.map((banner: any, index: number) => (
-                      <div key={index} className="glass-panel p-8 rounded-3xl border-white/5 relative group overflow-hidden">
+                      <div key={index} className="glass-panel p-8 rounded-3xl border-gray-100 relative group overflow-hidden">
                         <div className="absolute inset-0 opacity-20 pointer-events-none">
                           <img src={banner.imageUrl} alt="Background Preview" className="w-full h-full object-cover blur-xl" referrerPolicy="no-referrer" />
                         </div>
-                        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500 rounded-l-3xl z-10"></div>
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gray-300 rounded-l-3xl z-10"></div>
                         
                         <div className="relative z-10">
                           <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-white font-display">Slide {index + 1}</h4>
+                            <h4 className="text-xl text-gray-900 font-display">Slide {index + 1}</h4>
                             <button 
                               onClick={() => handleDelete('banners', index)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -1719,22 +1729,22 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título Principal</label>
-                              <input type="text" value={banner.title} onChange={e => handleChange('banners', index, 'title', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all" />
+                              <input type="text" value={banner.title} onChange={e => handleChange('banners', index, 'title', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-500 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Subtítulo (Destaque)</label>
-                              <input type="text" value={banner.subtitle} onChange={e => handleChange('banners', index, 'subtitle', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all" />
+                              <input type="text" value={banner.subtitle} onChange={e => handleChange('banners', index, 'subtitle', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-500 transition-all" />
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Descrição</label>
-                              <textarea value={banner.description} onChange={e => handleChange('banners', index, 'description', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all resize-none" />
+                              <textarea value={banner.description} onChange={e => handleChange('banners', index, 'description', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 h-24 focus:border-gray-500 transition-all resize-none" />
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">URL da Imagem de Fundo</label>
                               <div className="flex gap-4">
-                                <input type="text" value={banner.imageUrl} onChange={e => handleChange('banners', index, 'imageUrl', e.target.value)} className="flex-1 bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all" />
+                                <input type="text" value={banner.imageUrl} onChange={e => handleChange('banners', index, 'imageUrl', e.target.value)} className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-500 transition-all" />
                                 {banner.imageUrl && (
-                                  <img src={banner.imageUrl} alt="Preview" className="w-12 h-12 rounded-lg object-cover border border-white/10" referrerPolicy="no-referrer" />
+                                  <img src={banner.imageUrl} alt="Preview" className="w-12 h-12 rounded-lg object-cover border border-gray-200" referrerPolicy="no-referrer" />
                                 )}
                               </div>
                             </div>
@@ -1743,8 +1753,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     ))}
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('banners')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('banners')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -1764,7 +1774,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Módulos do Curso</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Módulos do Curso</h3>
                       <p className="text-muted-foreground">Edite os módulos, professores e detalhes do curso.</p>
                     </div>
                     <Button 
@@ -1788,12 +1798,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="space-y-6">
                     {draft.modules?.map((module: any, index: number) => (
-                      <div key={index} className="glass-panel p-8 rounded-3xl border-white/5 relative group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 rounded-l-3xl z-10"></div>
+                      <div key={index} className="glass-panel p-8 rounded-3xl border-gray-100 relative group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gray-300 rounded-l-3xl z-10"></div>
                         
                         <div className="relative z-10">
                           <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-white font-display">{module.title}</h4>
+                            <h4 className="text-xl text-gray-900 font-display">{module.title}</h4>
                             <button 
                               onClick={() => handleDelete('modules', index)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -1805,29 +1815,29 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título</label>
-                              <input type="text" value={module.title} onChange={e => handleChange('modules', index, 'title', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all" />
+                              <input type="text" value={module.title} onChange={e => handleChange('modules', index, 'title', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Professor</label>
-                              <input type="text" value={module.teacher} onChange={e => handleChange('modules', index, 'teacher', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all" />
+                              <input type="text" value={module.teacher} onChange={e => handleChange('modules', index, 'teacher', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Duração</label>
-                              <input type="text" value={module.duration || ''} placeholder="Ex: 6 meses" onChange={e => handleChange('modules', index, 'duration', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all" />
+                              <input type="text" value={module.duration || ''} placeholder="Ex: 6 meses" onChange={e => handleChange('modules', index, 'duration', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ícone</label>
-                              <select value={module.icon || 'Mic'} onChange={e => handleChange('modules', index, 'icon', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all appearance-none">
-                                <option value="Mic">🎙️ Microfone</option>
-                                <option value="Headphones">🎧 Fones</option>
-                                <option value="Star">⭐ Estrela</option>
-                                <option value="BookOpen">📖 Livro</option>
-                                <option value="Award">🏆 Prêmio</option>
+                              <select value={module.icon || 'Mic'} onChange={e => handleChange('modules', index, 'icon', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all appearance-none">
+                                <option value="Mic">Microfone</option>
+                                <option value="Headphones">Fones</option>
+                                <option value="Star">Estrela</option>
+                                <option value="BookOpen">Livro</option>
+                                <option value="Award">Prêmio</option>
                               </select>
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Descrição</label>
-                              <textarea value={module.desc} onChange={e => handleChange('modules', index, 'desc', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all resize-none" />
+                              <textarea value={module.desc} onChange={e => handleChange('modules', index, 'desc', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 h-24 focus:border-gray-400 transition-all resize-none" />
                             </div>
                           </div>
 
@@ -1835,8 +1845,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     ))}
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('modules')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('modules')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -1856,7 +1866,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">O que você vai aprender</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">O que você vai aprender</h3>
                       <p className="text-muted-foreground">Edite os pontos de aprendizado do curso.</p>
                     </div>
                     <Button 
@@ -1869,12 +1879,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="space-y-6">
                     {draft.learnings?.map((learning: any, index: number) => (
-                      <div key={index} className="glass-panel p-8 rounded-3xl border-white/5 relative group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-orange-500 rounded-l-3xl z-10"></div>
+                      <div key={index} className="glass-panel p-8 rounded-3xl border-gray-100 relative group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gray-300 rounded-l-3xl z-10"></div>
                         
                         <div className="relative z-10">
                           <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-white font-display">{learning.title}</h4>
+                            <h4 className="text-xl text-gray-900 font-display">{learning.title}</h4>
                             <button 
                               onClick={() => handleDelete('learnings', index)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -1889,7 +1899,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               <select
                                 value={learning.module_slug || ''}
                                 onChange={e => handleChange('learnings', index, 'module_slug', e.target.value)}
-                                className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all appearance-none"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all appearance-none"
                               >
                                 <option value="">— Sem módulo específico —</option>
                                 {draft.modules?.map((mod: any) => (
@@ -1899,19 +1909,19 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título</label>
-                              <input type="text" value={learning.title} onChange={e => handleChange('learnings', index, 'title', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all" />
+                              <input type="text" value={learning.title} onChange={e => handleChange('learnings', index, 'title', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Descrição</label>
-                              <textarea value={learning.description} onChange={e => handleChange('learnings', index, 'description', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-all resize-none" />
+                              <textarea value={learning.description} onChange={e => handleChange('learnings', index, 'description', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 h-24 focus:border-gray-400 transition-all resize-none" />
                             </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('learnings')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('learnings')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -1931,7 +1941,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Depoimentos</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Depoimentos</h3>
                       <p className="text-muted-foreground">Edite os depoimentos dos alunos.</p>
                     </div>
                     <Button 
@@ -1944,12 +1954,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="space-y-6">
                     {draft.testimonials?.map((testimonial: any, index: number) => (
-                      <div key={index} className="glass-panel p-8 rounded-3xl border-white/5 relative group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-green-500 rounded-l-3xl z-10"></div>
+                      <div key={index} className="glass-panel p-8 rounded-3xl border-gray-100 relative group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gray-300 rounded-l-3xl z-10"></div>
                         
                         <div className="relative z-10">
                           <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-white font-display">{testimonial.name}</h4>
+                            <h4 className="text-xl text-gray-900 font-display">{testimonial.name}</h4>
                             <button 
                               onClick={() => handleDelete('testimonials', index)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -1961,27 +1971,27 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nome</label>
-                              <input type="text" value={testimonial.name} onChange={e => handleChange('testimonials', index, 'name', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all" />
+                              <input type="text" value={testimonial.name} onChange={e => handleChange('testimonials', index, 'name', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Cargo/Papel</label>
-                              <input type="text" value={testimonial.role} onChange={e => handleChange('testimonials', index, 'role', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all" />
+                              <input type="text" value={testimonial.role} onChange={e => handleChange('testimonials', index, 'role', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Depoimento</label>
-                              <textarea value={testimonial.text || testimonial.content || ''} onChange={e => handleChange('testimonials', index, 'text', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all resize-none" />
+                              <textarea value={testimonial.text || testimonial.content || ''} onChange={e => handleChange('testimonials', index, 'text', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 h-24 focus:border-gray-400 transition-all resize-none" />
                             </div>
                             <div className="md:col-span-2">
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">URL da Foto</label>
-                              <input type="text" value={testimonial.avatar || testimonial.imageUrl || ''} onChange={e => handleChange('testimonials', index, 'avatar', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all" />
+                              <input type="text" value={testimonial.avatar || testimonial.imageUrl || ''} onChange={e => handleChange('testimonials', index, 'avatar', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('testimonials')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('testimonials')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -2001,7 +2011,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Perguntas Frequentes</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Perguntas Frequentes</h3>
                       <p className="text-muted-foreground">Edite as perguntas e respostas do FAQ.</p>
                     </div>
                     <Button 
@@ -2014,12 +2024,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
                   <div className="space-y-6">
                     {draft.faqs?.map((faq: any, index: number) => (
-                      <div key={index} className="glass-panel p-8 rounded-3xl border-white/5 relative group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 rounded-l-3xl z-10"></div>
+                      <div key={index} className="glass-panel p-8 rounded-3xl border-gray-100 relative group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gray-300 rounded-l-3xl z-10"></div>
                         
                         <div className="relative z-10">
                           <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-white font-display">{faq.question}</h4>
+                            <h4 className="text-xl text-gray-900 font-display">{faq.question}</h4>
                             <button 
                               onClick={() => handleDelete('faqs', index)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors opacity-0 group-hover:opacity-100"
@@ -2031,11 +2041,11 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           <div className="grid grid-cols-1 gap-6">
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pergunta</label>
-                              <input type="text" value={faq.question} onChange={e => handleChange('faqs', index, 'question', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all" />
+                              <input type="text" value={faq.question} onChange={e => handleChange('faqs', index, 'question', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:border-gray-400 transition-all" />
                             </div>
                             <div>
                               <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Resposta</label>
-                              <textarea value={faq.answer} onChange={e => handleChange('faqs', index, 'answer', e.target.value)} className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-white h-24 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all resize-none" />
+                              <textarea value={faq.answer} onChange={e => handleChange('faqs', index, 'answer', e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 h-24 focus:border-gray-400 transition-all resize-none" />
                             </div>
                           </div>
                         </div>
@@ -2057,7 +2067,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                 >
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Central de Suporte</h3>
+                      <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Central de Suporte</h3>
                       <p className="text-muted-foreground">Todos os chamados abertos pelos alunos em um só lugar.</p>
                     </div>
                     <Button
@@ -2068,14 +2078,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           setAllSupportTickets((tickets as any[]) || []);
                         } finally { setIsLoading(false); }
                       }}
-                      className="bg-white/10 hover:bg-white/20 text-white rounded-xl whimsy-hover shrink-0"
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl shrink-0"
                     >
                       Atualizar Lista
                     </Button>
                   </div>
 
                   {allSupportTickets.length === 0 ? (
-                    <div className="glass-panel p-12 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
+                    <div className="glass-panel p-12 rounded-3xl border-gray-100 flex flex-col items-center justify-center text-center">
                       <Headphones className="w-12 h-12 text-gray-600 mb-4" />
                       <p className="text-gray-400 font-medium">Nenhum chamado ainda.</p>
                       <p className="text-gray-600 text-sm mt-1">Clique em "Atualizar Lista" para carregar os chamados.</p>
@@ -2083,21 +2093,21 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   ) : (
                     <div className="space-y-4">
                       {allSupportTickets.map((ticket: any) => (
-                        <div key={ticket.id} className="glass-panel p-6 rounded-3xl border-white/5 space-y-4">
+                        <div key={ticket.id} className="glass-panel p-6 rounded-3xl border-gray-100 space-y-4">
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <p className="font-bold text-white">{ticket.subject}</p>
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${ ticket.status === 'Resolvido' ? 'bg-green-500/10 text-green-400' : ticket.status === 'Em Análise' ? 'bg-yellow-500/10 text-yellow-400' : 'bg-blue-500/10 text-blue-400' }`}>{ticket.status}</span>
+                                <p className="text-gray-900">{ticket.subject}</p>
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${ 'bg-gray-100 text-gray-700' }`}>{ticket.status}</span>
                               </div>
-                              <p className="text-sm text-gray-300 mb-1">{ticket.message}</p>
+                              <p className="text-sm text-gray-500 mb-1">{ticket.message}</p>
                               <p className="text-xs text-gray-500">De: {ticket.name} ({ticket.email})</p>
                             </div>
                           </div>
                           {ticket.admin_reply && (
-                            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
-                              <p className="text-xs font-bold text-cyan-400 mb-1">Resposta enviada:</p>
-                              <p className="text-sm text-gray-300">{ticket.admin_reply}</p>
+                            <div className="p-3 rounded-xl bg-gray-100 border border-gray-200">
+                              <p className="text-xs font-bold text-gray-700 mb-1">Resposta enviada:</p>
+                              <p className="text-sm text-gray-500">{ticket.admin_reply}</p>
                             </div>
                           )}
                           <div className="space-y-2">
@@ -2105,18 +2115,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                               value={supportReply[ticket.id] || ''}
                               onChange={e => setSupportReply(p => ({ ...p, [ticket.id]: e.target.value }))}
                               placeholder="Escreva uma resposta para o aluno..."
-                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-cyan-400 transition-all resize-none h-20"
+                              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:border-gray-400 transition-all resize-none h-20"
                             />
                             <div className="flex gap-3">
                               <Button
                                 onClick={() => handleReplySupportTicket(ticket.id, ticket.student_id, 'Em Análise')}
-                                className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/20 rounded-xl"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl"
                               >
                                 Marcar Em Análise
                               </Button>
                               <Button
                                 onClick={() => handleReplySupportTicket(ticket.id, ticket.student_id, 'Resolvido')}
-                                className="bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/20 rounded-xl"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl"
                               >
                                 Resolver e Responder
                               </Button>
@@ -2136,8 +2146,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       ))}
                     </div>
                   )}
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('faqs')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('faqs')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -2156,15 +2166,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Configurações do Sistema</h3>
+                    <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Configurações do Sistema</h3>
                     <p className="text-muted-foreground">Gerencie chaves de API, integrações e parâmetros globais.</p>
                   </div>
                   
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* General Settings */}
-                    <div className="glass-panel p-8 md:p-10 rounded-3xl border-white/5">
-                      <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <div className="glass-panel p-8 md:p-10 rounded-3xl border-gray-100">
+                      <h4 className="text-lg text-gray-900 mb-6 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
                           <Settings className="w-4 h-4" />
                         </div>
                         Geral
@@ -2172,30 +2182,30 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       
                       <div className="space-y-6">
                         <div>
-                          <label className="block text-sm font-bold text-gray-300 mb-2">Nome do Site</label>
+                          <label className="block text-sm font-bold text-gray-600 mb-2">Nome do Site</label>
                           <input 
                             type="text" 
                             value={draft.settings?.siteName || ''}
                             onChange={e => handleSettingChange('siteName', e.target.value)}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-bold text-gray-300 mb-2">E-mail de Contato</label>
+                          <label className="block text-sm font-bold text-gray-600 mb-2">E-mail de Contato</label>
                           <input 
                             type="email" 
                             value={draft.settings?.contactEmail || ''}
                             onChange={e => handleSettingChange('contactEmail', e.target.value)}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Database Settings */}
-                    <div className="glass-panel p-8 md:p-10 rounded-3xl border-white/5">
-                      <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400">
+                    <div className="glass-panel p-8 md:p-10 rounded-3xl border-gray-100">
+                      <h4 className="text-lg text-gray-900 mb-6 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
                           <Database className="w-4 h-4" />
                         </div>
                         Banco de Dados (Supabase)
@@ -2203,24 +2213,24 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       
                       <div className="space-y-6">
                         <div>
-                          <label className="block text-sm font-bold text-gray-300 mb-2">Supabase Project URL</label>
+                          <label className="block text-sm font-bold text-gray-600 mb-2">Supabase Project URL</label>
                           <input 
                             type="text" 
                             value={draft.settings?.supabaseUrl || ''}
                             onChange={e => handleSettingChange('supabaseUrl', e.target.value)}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all font-mono text-sm"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all font-mono text-sm"
                             placeholder="https://sua-url.supabase.co"
                           />
                           <p className="text-xs text-muted-foreground mt-2">A URL do seu projeto Supabase. Encontrada em Project Settings &gt; API.</p>
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-bold text-gray-300 mb-2">Supabase Anon Key</label>
+                          <label className="block text-sm font-bold text-gray-600 mb-2">Supabase Anon Key</label>
                           <input 
                             type="password" 
                             value={draft.settings?.supabaseAnonKey || ''}
                             onChange={e => handleSettingChange('supabaseAnonKey', e.target.value)}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all font-mono text-sm"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all font-mono text-sm"
                             placeholder="eyJh..."
                           />
                           <p className="text-xs text-muted-foreground mt-2">A chave pública anônima. Não insira a chave de serviço (service_role) aqui.</p>
@@ -2230,9 +2240,9 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   </div>
 
                   {/* Seed / Initialize Database */}
-                  <div className="glass-panel p-8 md:p-10 rounded-3xl border-white/5">
-                    <h4 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400">
+                  <div className="glass-panel p-8 md:p-10 rounded-3xl border-gray-100">
+                    <h4 className="text-lg text-gray-900 mb-2 flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
                         <Database className="w-4 h-4" />
                       </div>
                       Inicializar Banco de Dados
@@ -2243,14 +2253,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                     <button
                       onClick={handleSeedDatabase}
                       disabled={isSeedingDb}
-                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-bold text-sm hover:bg-orange-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gray-100 border border-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Database className="w-4 h-4" />
                       {isSeedingDb ? 'Inicializando...' : 'Inicializar com Currículo Padrão'}
                     </button>
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('settings')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('settings')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -2269,15 +2279,15 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Banner Promocional</h3>
+                    <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Banner Promocional</h3>
                     <p className="text-muted-foreground">Configure o rodapé de promoção que aparece sobreposto a todo o site.</p>
                   </div>
 
-                  <div className="glass-panel p-8 md:p-10 rounded-3xl border-white/5 space-y-8">
+                  <div className="glass-panel p-8 md:p-10 rounded-3xl border-gray-100 space-y-8">
                     {/* Enable toggle */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white font-bold">Ativar banner</p>
+                        <p className="text-gray-900 font-bold">Ativar banner</p>
                         <p className="text-xs text-gray-400 mt-0.5">Exibe o rodapé promocional para todos os visitantes.</p>
                       </div>
                       <button
@@ -2289,7 +2299,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           }
                         }))}
                         className={`relative w-14 h-7 rounded-full transition-colors ${
-                          draft.settings?.promoBanner?.enabled ? 'bg-cyan-500' : 'bg-white/10'
+                          draft.settings?.promoBanner?.enabled ? 'bg-gray-900' : 'bg-gray-200'
                         }`}
                       >
                         <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
@@ -2301,7 +2311,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Headline */}
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Texto da chamada</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Texto da chamada</label>
                         <input
                           type="text"
                           value={draft.settings?.promoBanner?.headline || ''}
@@ -2310,13 +2320,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, headline: e.target.value } }
                           }))}
                           placeholder="Ex: Aproveite a temporada de descontos"
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
                       </div>
 
                       {/* Badge */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Badge — valor/desconto</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Badge — valor/desconto</label>
                         <input
                           type="text"
                           value={draft.settings?.promoBanner?.badge || ''}
@@ -2325,13 +2335,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, badge: e.target.value } }
                           }))}
                           placeholder="Ex: R$99"
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
                       </div>
 
                       {/* Badge subtext */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Badge — subtexto</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Badge — subtexto</label>
                         <input
                           type="text"
                           value={draft.settings?.promoBanner?.badgeSubtext || ''}
@@ -2340,13 +2350,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, badgeSubtext: e.target.value } }
                           }))}
                           placeholder="Ex: DE ENTRADA"
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
                       </div>
 
                       {/* Expiry */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Data/hora de expiração</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Data/hora de expiração</label>
                         <input
                           type="datetime-local"
                           value={draft.settings?.promoBanner?.expiresAt
@@ -2356,14 +2366,14 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             ...prev,
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, expiresAt: e.target.value ? new Date(e.target.value).toISOString() : '' } }
                           }))}
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
                         <p className="text-xs text-gray-500 mt-1.5">Alimenta a contagem regressiva. Deixe vazio para não exibir contador.</p>
                       </div>
 
                       {/* CTA text */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Texto do botão CTA</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Texto do botão CTA</label>
                         <input
                           type="text"
                           value={draft.settings?.promoBanner?.ctaText || ''}
@@ -2372,13 +2382,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, ctaText: e.target.value } }
                           }))}
                           placeholder="Ex: MATRICULE-SE"
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
                       </div>
 
                       {/* CTA action */}
                       <div>
-                        <label className="block text-sm font-bold text-gray-300 mb-2">Ação do botão CTA</label>
+                        <label className="block text-sm font-bold text-gray-600 mb-2">Ação do botão CTA</label>
                         <input
                           type="text"
                           value={draft.settings?.promoBanner?.ctaAction || ''}
@@ -2387,9 +2397,9 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             settings: { ...prev.settings, promoBanner: { ...prev.settings?.promoBanner, ctaAction: e.target.value } }
                           }))}
                           placeholder='"enroll" ou URL externa'
-                          className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 text-gray-900 focus:outline-none focus:border-gray-500 transition-all text-sm"
                         />
-                        <p className="text-xs text-gray-500 mt-1.5">Use <code className="text-cyan-400">enroll</code> para abrir o modal de matrícula, ou cole uma URL para redirecionar.</p>
+                        <p className="text-xs text-gray-500 mt-1.5">Use <code className="text-gray-700">enroll</code> para abrir o modal de matrícula, ou cole uma URL para redirecionar.</p>
                       </div>
                     </div>
 
@@ -2453,8 +2463,8 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                       </div>
                     </div>
                   </div>
-                  <div className="pt-6 border-t border-white/10 mt-8 flex justify-end">
-                    <Button onClick={() => handleSaveTab('promocao')} disabled={isLoading} className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl px-8 py-5 shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="pt-6 border-t border-gray-200 mt-8 flex justify-end">
+                    <Button onClick={() => handleSaveTab('promocao')} disabled={isLoading} className="bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-xl px-8 py-5 shadow-sm transition-all whimsy-hover disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2 inline-block" /> : <Save className="w-4 h-4 mr-2" />}
                       {isLoading ? 'Salvando...' : 'Publicar Alterações'}
                     </Button>
@@ -2473,18 +2483,18 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                   className="space-y-8"
                 >
                   <div>
-                    <h3 className="text-3xl font-black text-white mb-2 font-display tracking-tight">Quadro de Avisos</h3>
+                    <h3 className="text-3xl font-normal text-gray-900 mb-2 font-display tracking-tight">Quadro de Avisos</h3>
                     <p className="text-muted-foreground">Publique avisos que aparecerão no portal de todos os alunos.</p>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                     {/* Create Form */}
-                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-white/5 self-start">
+                    <div className="lg:col-span-2 glass-panel p-8 rounded-3xl border-gray-100 self-start">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700">
                           <Megaphone className="w-5 h-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Novo Aviso</h4>
+                        <h4 className="text-lg text-gray-900">Novo Aviso</h4>
                       </div>
                       <form onSubmit={handleCreateNotice} className="space-y-5">
                         <div>
@@ -2494,7 +2504,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             value={noticeTitle}
                             onChange={e => setNoticeTitle(e.target.value)}
                             placeholder="Ex: Aula especial esta semana!"
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-gray-400 transition-colors"
                           />
                         </div>
                         <div>
@@ -2504,13 +2514,13 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                             onChange={e => setNoticeBody(e.target.value)}
                             placeholder="Escreva o aviso para todos os alunos..."
                             rows={5}
-                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-400 transition-colors resize-none"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-gray-400 transition-colors resize-none"
                           />
                         </div>
                         <button
                           type="submit"
                           disabled={isCreatingNotice || !noticeTitle.trim() || !noticeBody.trim()}
-                          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gray-900 hover:bg-gray-700 text-white font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Send className="w-4 h-4" />
                           {isCreatingNotice ? 'Publicando...' : 'Publicar Aviso'}
@@ -2521,11 +2531,11 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                     {/* Notices List */}
                     <div className="lg:col-span-3 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-black text-white uppercase tracking-widest">Avisos Publicados</h4>
+                        <h4 className="text-sm font-normal text-gray-900 uppercase tracking-widest">Avisos Publicados</h4>
                         <span className="text-xs text-gray-500">{notices.length} aviso(s)</span>
                       </div>
                       {notices.length === 0 ? (
-                        <div className="glass-panel p-10 rounded-3xl border-white/5 flex flex-col items-center justify-center text-center">
+                        <div className="glass-panel p-10 rounded-3xl border-gray-100 flex flex-col items-center justify-center text-center">
                           <Bell className="w-10 h-10 text-gray-600 mb-3" />
                           <p className="text-gray-400 font-medium text-sm">Nenhum aviso publicado.</p>
                           <p className="text-gray-600 text-xs mt-1">Crie um aviso no formulário ao lado.</p>
@@ -2535,12 +2545,12 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                           {notices.map((n: any) => {
                             const date = n.created_at ? new Date(n.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
                             return (
-                              <div key={n.id} className="glass-panel p-5 rounded-2xl border-white/5 flex items-start gap-4">
-                                <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
+                              <div key={n.id} className="glass-panel p-5 rounded-2xl border-gray-100 flex items-start gap-4">
+                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0 mt-0.5">
                                   <Bell className="w-4 h-4" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-white">{n.title}</p>
+                                  <p className="text-sm text-gray-900">{n.title}</p>
                                   <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{n.body}</p>
                                   {date && <p className="text-[10px] text-gray-600 mt-1.5">{date}</p>}
                                 </div>

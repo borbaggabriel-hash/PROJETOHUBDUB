@@ -185,16 +185,30 @@ export const supabaseService = {
     return data ?? [];
   },
 
-  async upsertStudentEnrollment(uid: string, d: { module_title: string; module_slug: string; status: string; progress: number }) {
-    const { error } = await supabaseAdmin.from('student_enrollments').upsert({
+  async upsertStudentEnrollment(uid: string, d: { module_title: string; module_slug: string; status: string; progress?: number; validity?: string; enrolled_by?: string }) {
+    const payload: Record<string, any> = {
       student_id: uid,
       module: d.module_title,
       module_slug: d.module_slug,
       status: d.status,
-      progress: d.progress,
+      progress: d.progress ?? 0,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'student_id' });
-    if (error) handleError(error, 'write', 'student_enrollments');
+    };
+    // Only include optional columns if they exist in the schema
+    if (d.validity !== undefined) payload.validity = d.validity ?? null;
+    if (d.enrolled_by !== undefined) payload.enrolled_by = d.enrolled_by ?? null;
+    const { error } = await supabaseAdmin.from('student_enrollments').upsert(payload, { onConflict: 'student_id' });
+    if (error) {
+      // Retry without optional columns if they caused a schema error
+      if (error.message?.includes('enrolled_by') || error.message?.includes('validity')) {
+        delete payload.validity;
+        delete payload.enrolled_by;
+        const { error: retryError } = await supabaseAdmin.from('student_enrollments').upsert(payload, { onConflict: 'student_id' });
+        if (retryError) handleError(retryError, 'write', 'student_enrollments');
+      } else {
+        handleError(error, 'write', 'student_enrollments');
+      }
+    }
   },
 
   async getStudentEnrollmentByUid(uid: string) {
