@@ -41,6 +41,14 @@ export function StudentDashboard({ onLogout, onHome, data, studentData, onRefres
     { id: 'perfil', label: 'Meu Perfil', icon: User },
   ];
 
+  const mobileNavItems = [
+    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
+    { id: 'agenda', label: 'Agenda', icon: Calendar },
+    { id: 'mensagens', label: 'Mensagens', icon: MessageSquare, badge: unreadCount },
+    { id: 'financeiro', label: 'Financeiro', icon: CreditCard },
+    { id: 'suporte', label: 'Suporte', icon: HelpCircle },
+  ];
+
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -137,8 +145,8 @@ export function StudentDashboard({ onLogout, onHome, data, studentData, onRefres
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cyan-500 rounded-full"></span>}
             </button>
-            <button onClick={() => setActiveTab('perfil')}>
-              <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-8 h-8 rounded-full border-2 border-gray-200 object-cover" />
+            <button onClick={() => setActiveTab('perfil')} className="w-8 h-8 rounded-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors">
+              <User className="w-4 h-4" />
             </button>
           </div>
         </header>
@@ -161,43 +169,35 @@ export function StudentDashboard({ onLogout, onHome, data, studentData, onRefres
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex items-center justify-around px-2 h-16">
-          {menuItems.slice(0, 4).map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl transition-all flex-1 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
-              >
-                {isActive && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-gray-100 rounded-xl" transition={{ type: 'spring', stiffness: 380, damping: 30 }} />}
-                <div className="relative">
-                  <Icon className="w-5 h-5 relative z-10" />
-                  {item.badge != null && item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] font-bold flex items-center justify-center z-20">{item.badge}</span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium relative z-10 leading-none">{item.label.split(' ')[0]}</span>
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setActiveTab('financeiro')}
-            className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl transition-all flex-1 ${activeTab === 'financeiro' ? 'text-gray-900' : 'text-gray-400'}`}
-          >
-            {activeTab === 'financeiro' && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-gray-100 rounded-xl" transition={{ type: 'spring', stiffness: 380, damping: 30 }} />}
-            <CreditCard className="w-5 h-5 relative z-10" />
-            <span className="text-[10px] font-medium relative z-10 leading-none">Financeiro</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('perfil')}
-            className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-xl transition-all flex-1 ${activeTab === 'perfil' ? 'text-gray-900' : 'text-gray-400'}`}
-          >
-            {activeTab === 'perfil' && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-gray-100 rounded-xl" transition={{ type: 'spring', stiffness: 380, damping: 30 }} />}
-            <img src={profile?.avatar_url || `https://i.pravatar.cc/150?u=${uid || 1}`} alt="User" className="w-5 h-5 rounded-full border border-gray-300 relative z-10 object-cover" />
-            <span className="text-[10px] font-medium relative z-10 leading-none">Perfil</span>
-          </button>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex items-center justify-around px-1 h-16">
+        {mobileNavItems.map(item => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`relative flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-xl transition-all flex-1 ${isActive ? 'text-gray-900' : 'text-gray-400'}`}
+            >
+              {isActive && <motion.div layoutId="mobileActiveTab" className="absolute inset-0 bg-gray-100 rounded-xl" transition={{ type: 'spring', stiffness: 380, damping: 30 }} />}
+              <div className="relative">
+                <Icon className="w-5 h-5 relative z-10" />
+                {item.badge != null && item.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] font-bold flex items-center justify-center z-20">{item.badge}</span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium relative z-10 leading-none">{item.label.split(' ')[0]}</span>
+            </button>
+          );
+        })}
+        {/* Sair */}
+        <button
+          onClick={onLogout}
+          className="relative flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-xl transition-all flex-1 text-gray-400 hover:text-red-500"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-[10px] font-medium leading-none">Sair</span>
+        </button>
       </nav>
     </div>
   );
