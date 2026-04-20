@@ -541,7 +541,7 @@ function App() {
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
             <div className="max-w-3xl">
               <motion.h1 initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.6}}
-                className="text-3xl sm:text-5xl md:text-7xl font-black leading-[1.06] mb-6 font-poppins tracking-tight text-gray-900">
+                className="text-4xl sm:text-5xl md:text-7xl font-black leading-[1.06] mb-6 font-poppins tracking-tight text-gray-900">
                 Domine a<br/><span className="text-gradient-brand">Dublagem Profissional</span><br/>do zero ao mercado.
               </motion.h1>
               <motion.p initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:0.5,delay:0.2}}
