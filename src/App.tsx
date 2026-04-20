@@ -136,23 +136,60 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
         </div>
 
         {/* ── MOBILE LAYOUT (< sm) ── */}
-        <div className="sm:hidden relative w-full px-5 pt-4 pb-5">
+        <motion.div
+          className="sm:hidden relative w-full px-5 pt-4 pb-5"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+        >
           {/* Close — top right */}
           <button onClick={onDismiss} className="absolute right-3 top-3 text-white/50 hover:text-white p-1.5 rounded-full" aria-label="Fechar oferta">
             <X className="w-4 h-4" />
           </button>
-          {/* Headline */}
-          <p className="text-white font-black text-base text-center leading-snug mb-3 drop-shadow-sm pr-6">
-            {promo.headline}
-          </p>
-          {/* Full-width CTA button */}
-          <button
-            onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
-            className="w-full bg-white text-[#1a1060] font-black text-sm py-3 rounded-full uppercase tracking-widest shadow-lg"
+
+          {/* Headline + badge inline */}
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, type: 'spring', stiffness: 300, damping: 24 }}
+            className="text-white font-black text-base text-center leading-snug mb-3 pr-6 drop-shadow-sm"
           >
-            {promo.ctaText || 'Matricule-se'}
-          </button>
-        </div>
+            {promo.headline}
+            {promo.badge && (
+              <span className="relative inline-block ml-1 overflow-hidden rounded-sm">
+                {/* shimmer sweep over badge value */}
+                <motion.span
+                  aria-hidden
+                  className="absolute inset-y-0 w-full pointer-events-none"
+                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)' }}
+                  animate={{ x: ['-130%', '230%'] }}
+                  transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 3, ease: 'easeInOut', delay: 0.6 }}
+                />
+                <span className="relative text-white">{promo.badge}</span>
+              </span>
+            )}
+          </motion.p>
+
+          {/* Full-width CTA with shimmer */}
+          <motion.button
+            onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, type: 'spring', stiffness: 300, damping: 24 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="relative w-full overflow-hidden bg-white text-[#1a1060] font-black text-sm py-3 rounded-full uppercase tracking-widest shadow-lg"
+          >
+            <motion.span
+              aria-hidden
+              className="absolute inset-y-0 w-1/2 pointer-events-none"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(109,40,217,0.1) 50%, transparent 100%)' }}
+              animate={{ x: ['-120%', '260%'] }}
+              transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut', delay: 1 }}
+            />
+            <span className="relative z-10">{promo.ctaText || 'Matricule-se'}</span>
+          </motion.button>
+        </motion.div>
 
         {/* ── DESKTOP LAYOUT (sm+) ── */}
         <div className="hidden sm:flex w-full h-20 items-center justify-center relative px-12 overflow-visible">
