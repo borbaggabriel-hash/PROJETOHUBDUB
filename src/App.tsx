@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronRight, Star, Mic,
   Headphones, Award, ArrowRight,
-  MessageSquare, ChevronDown, X
+  MessageSquare, ChevronDown, X, BookOpen
 } from 'lucide-react';
 import { initialSiteData } from './data';
 import { AdminPanel } from './components/AdminPanel';
@@ -24,6 +24,61 @@ const HoverPill = ({ label, colorIdx: _colorIdx, onClick: _onClick }: { label: s
     {label}
   </span>
 );
+
+const iconMap: Record<string, React.ElementType> = { Mic, Headphones, Star, BookOpen, Award };
+
+const gradientBorders: Record<string, string> = {
+  'bg-gradient-card-1': 'border-blue-400/40',
+  'bg-gradient-card-2': 'border-pink-400/40',
+  'bg-gradient-card-3': 'border-violet-400/40',
+};
+
+const ModuleCard = ({ mod, index, Icon, grad, onEnroll }: any) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const backBorder = gradientBorders[grad] ?? 'border-gray-200';
+  const ResolvedIcon = iconMap[mod.icon] ?? Icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="perspective-1000 cursor-pointer w-full"
+      style={{ height: 330 }}
+      onClick={() => setIsFlipped(f => !f)}
+    >
+      <motion.div
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.55, type: 'spring', stiffness: 260, damping: 22 }}
+        className="relative w-full h-full preserve-3d"
+      >
+        {/* Front */}
+        <div className={`absolute inset-0 backface-hidden ${grad} rounded-3xl p-8 text-white overflow-hidden flex flex-col`}>
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-6">
+            <ResolvedIcon className="w-6 h-6 text-white" />
+          </div>
+          <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2 font-poppins">Módulo {index + 1}</p>
+          <div className="flex items-start justify-between gap-4">
+            <h3 className="text-[32px] font-black font-poppins leading-tight text-pretty">{mod.title?.split('—')[1]?.trim() || mod.title}</h3>
+            {mod.duration && <p className="text-2xl font-bold font-poppins text-white/70 shrink-0">{mod.duration}</p>}
+          </div>
+          <p className="text-white/50 text-sm mt-auto">Clique para saber mais</p>
+          <div className="absolute bottom-6 right-6 text-white/10 font-black text-8xl font-poppins select-none">{index + 1}</div>
+        </div>
+        {/* Back */}
+        <div
+          className={`absolute inset-0 backface-hidden rounded-3xl bg-white border ${backBorder} shadow-md p-8 flex flex-col overflow-hidden`}
+          style={{ transform: 'rotateY(180deg)' }}
+        >
+          <div className="flex-1 flex items-center">
+            <p className="text-gray-600 text-base leading-relaxed">{mod.desc}</p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const TeacherCard = ({ teacher, index }: any) => {
   const [isFlipped, setIsFlipped] = useState(false);
@@ -609,28 +664,16 @@ function App() {
               <p className="text-gray-500 mt-4 text-base md:text-lg">Três módulos progressivos de 6 meses cada, construídos para levar você do primeiro microfone ao mercado profissional.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
-              {uniqueModules.map((mod:any,i:number)=>{
-                const Icon = moduleIcons[i] ?? Mic;
-                const grad = moduleGradients[i] ?? 'bg-gradient-card-1';
-                return (
-                  <motion.div key={i} initial={{opacity:0,y:24}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
-                    transition={{duration:0.5,delay:i*0.1}}
-                    className={`${grad} rounded-3xl p-8 text-white relative overflow-hidden group cursor-pointer`}
-                    onClick={() => handleEnroll(mod.title)}>
-                    <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl"/>
-                    <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center mb-6">
-                      <Icon className="w-6 h-6 text-white"/>
-                    </div>
-                    <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-2 font-poppins">Módulo {i+1}</p>
-                    <h3 className="text-2xl font-black font-poppins leading-tight mb-3">{mod.title?.split('—')[1]?.trim()||mod.title}</h3>
-                    <p className="text-white/75 text-sm leading-relaxed mb-6 line-clamp-3">{mod.desc}</p>
-                    <div className="flex items-center gap-2 text-white text-sm font-bold border border-white/30 rounded-full px-4 py-2 w-fit hover:bg-white/10 transition-colors">
-                      Matricule-se <ChevronRight className="w-4 h-4"/>
-                    </div>
-                    <div className="absolute bottom-6 right-6 text-white/10 font-black text-8xl font-poppins select-none">{i+1}</div>
-                  </motion.div>
-                );
-              })}
+              {uniqueModules.map((mod: any, i: number) => (
+                <ModuleCard
+                  key={i}
+                  mod={mod}
+                  index={i}
+                  Icon={moduleIcons[i] ?? Mic}
+                  grad={moduleGradients[i] ?? 'bg-gradient-card-1'}
+                  onEnroll={handleEnroll}
+                />
+              ))}
             </div>
           </div>
         </section>
@@ -740,24 +783,6 @@ function App() {
             </div>
           </div>
         </section>
-
-        {/* ── CTA ── */}
-        <section className="py-20 bg-gradient-cta">
-          <div className="max-w-3xl mx-auto px-4 md:px-8 text-center">
-            <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{duration:0.5}}>
-              <p className="text-white/70 text-xs font-black uppercase tracking-widest font-poppins mb-4">Pronto para começar?</p>
-              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white font-poppins leading-tight mb-6">
-                Sua voz pode ser<br/>seu maior instrumento
-              </h2>
-              <p className="text-white/80 text-base md:text-lg mb-8 md:mb-10 max-w-xl mx-auto">Vagas limitadas por turma. Formação completa com professores ativos no mercado.</p>
-              <button onClick={()=>handleEnroll()}
-                className="bg-white text-[#6d28d9] font-black text-base md:text-lg px-8 md:px-10 py-4 rounded-full hover:bg-gray-50 transition-all shadow-xl flex items-center justify-center gap-2 w-full sm:w-auto sm:mx-auto group">
-                Garantir minha vaga <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform"/>
-              </button>
-            </motion.div>
-          </div>
-        </section>
-
       </main>
 
       {/* ── FOOTER ── */}

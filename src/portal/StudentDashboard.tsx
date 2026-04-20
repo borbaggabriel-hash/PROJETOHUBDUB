@@ -238,21 +238,9 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
               Acompanhe sua jornada acadêmica por aqui.
             </p>
           </div>
-          <div className="flex items-center gap-4 bg-gray-50 px-5 py-4 rounded-2xl border border-gray-200 shrink-0 flex-wrap">
-            <div className="relative w-14 h-14 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e5e7eb" strokeWidth="10" />
-                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#0891b2" strokeWidth="10"
-                  strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * totalProgress / 100)} strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm text-gray-900">{totalProgress}%</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Progresso</p>
-              <p className="text-gray-900 text-sm">{mainEnrollment?.module || 'Sem matrícula'}</p>
-            </div>
+          <div className="bg-gray-50 px-5 py-4 rounded-2xl border border-gray-200 shrink-0">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Módulo Atual</p>
+            <p className="text-gray-900 text-sm font-medium">{mainEnrollment?.module || 'Sem matrícula'}</p>
           </div>
         </div>
       </div>

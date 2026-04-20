@@ -1239,10 +1239,6 @@ export function AdminPanel({ data, onSave, onClose }: any) {
                                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Status</p>
                                               <p className="text-xs text-gray-900">{savedEnrollment.status}</p>
                                             </div>
-                                            <div>
-                                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Matriculado por</p>
-                                              <p className="text-xs text-gray-900 truncate">{savedEnrollment.enrolled_by || '—'}</p>
-                                            </div>
                                           </div>
                                         </div>
                                       </div>
