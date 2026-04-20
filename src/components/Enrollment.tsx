@@ -70,7 +70,7 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
 
             <div className="grid md:grid-cols-5 h-full overflow-y-auto custom-scrollbar">
               {/* Left Side - Info */}
-              <div className="md:col-span-2 relative overflow-hidden flex flex-col justify-between p-6 md:p-12 text-white min-h-[240px] md:min-h-full text-center md:text-left items-center md:items-start">
+              <div className="hidden md:flex md:col-span-2 relative overflow-hidden flex-col justify-between p-6 md:p-12 text-white md:min-h-full text-center md:text-left items-center md:items-start">
                 <div className="absolute inset-0 z-0">
                   <img 
                     src="https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=1000&auto=format&fit=crop" 
@@ -111,7 +111,7 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
               </div>
 
               {/* Right Side - Form */}
-              <div className="md:col-span-3 p-6 md:p-12 bg-[#0a0a0a] border-t md:border-t-0 md:border-l border-white/5">
+              <div className="col-span-full md:col-span-3 p-6 md:p-12 bg-[#0a0a0a] md:border-l border-white/5">
                 {isSuccess ? (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.8 }}

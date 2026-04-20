@@ -19,7 +19,7 @@ const pillPalette = [
   { border: '#f97316', text: '#f97316', bg: '#fff7ed' },
 ];
 
-const HoverPill = ({ label, colorIdx: _colorIdx, onClick: _onClick }: { label: string; colorIdx: number; onClick: () => void }) => (
+const HoverPill = ({ label, colorIdx: _colorIdx, onClick: _onClick }: { label: string; colorIdx: number; onClick: () => void; key?: React.Key }) => (
   <span className="border-2 border-gray-200 text-gray-600 font-medium px-5 py-2.5 text-sm rounded-full select-none">
     {label}
   </span>
@@ -502,11 +502,11 @@ function App() {
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
             <div className="max-w-3xl">
               <motion.h1 initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.6}}
-                className="text-5xl md:text-7xl font-black leading-[1.06] mb-6 font-poppins tracking-tight text-gray-900">
+                className="text-3xl sm:text-5xl md:text-7xl font-black leading-[1.06] mb-6 font-poppins tracking-tight text-gray-900">
                 Domine a<br/><span className="text-gradient-brand">Dublagem Profissional</span><br/>do zero ao mercado.
               </motion.h1>
               <motion.p initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:0.5,delay:0.2}}
-                className="text-lg md:text-xl text-gray-500 mb-8 max-w-xl leading-relaxed">
+                className="text-base md:text-xl text-gray-500 mb-8 w-full sm:max-w-xl leading-relaxed">
                 Formação completa de 18 meses com professores que atuam nos maiores estúdios do Brasil.
               </motion.p>
               <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:0.5,delay:0.3}}
@@ -553,21 +553,21 @@ function App() {
         <section className="py-5 border-y border-gray-100 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
             <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 font-poppins">Nossos alunos estão nos maiores estúdios</p>
-            <div className="flex gap-10 md:gap-16 items-center justify-center flex-wrap">
+            <div className="flex gap-4 md:gap-16 items-center justify-center flex-wrap">
               {['NETFLIX','PRIME VIDEO','DISNEY+','HBO MAX','CRUNCHYROLL'].map(s=>(
-                <span key={s} className="text-2xl font-black tracking-tight text-gray-300 font-poppins">{s}</span>
+                <span key={s} className="text-xs sm:text-sm md:text-2xl font-black tracking-tight text-gray-300 font-poppins">{s}</span>
               ))}
             </div>
           </div>
         </section>
 
         {/* ── MODULES ── */}
-        <section id="modulos" className="py-20 md:py-28 bg-white">
+        <section id="modulos" className="py-12 md:py-28 bg-white">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="mb-14 text-center max-w-2xl mx-auto">
               <p className="text-xs font-black uppercase tracking-widest text-[#6d28d9] font-poppins mb-3">Metodologia</p>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Seja um profissional da voz</h2>
-              <p className="text-gray-500 mt-4 text-lg">Três módulos progressivos de 6 meses cada, construídos para levar você do primeiro microfone ao mercado profissional.</p>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Seja um profissional da voz</h2>
+              <p className="text-gray-500 mt-4 text-base md:text-lg">Três módulos progressivos de 6 meses cada, construídos para levar você do primeiro microfone ao mercado profissional.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {uniqueModules.map((mod:any,i:number)=>{
@@ -597,7 +597,7 @@ function App() {
         </section>
 
         {/* ── STATS ── */}
-        <section className="py-16 bg-gray-50">
+        <section className="py-10 md:py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {[
@@ -617,12 +617,12 @@ function App() {
         </section>
 
         {/* ── TEACHERS ── */}
-        <section id="professores" className="py-20 md:py-28 bg-white">
+        <section id="professores" className="py-12 md:py-28 bg-white">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="text-center max-w-2xl mx-auto mb-14">
               <p className="text-xs font-black uppercase tracking-widest text-[#6d28d9] font-poppins mb-3">Professores</p>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Aprenda com Grandes Nomes do mercado</h2>
-              <p className="text-gray-500 mt-4 text-lg">Profissionais ativos nos maiores estúdios de dublagem do Brasil.</p>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Aprenda com Grandes Nomes do mercado</h2>
+              <p className="text-gray-500 mt-4 text-base md:text-lg">Profissionais ativos nos maiores estúdios de dublagem do Brasil.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {visibleTeachers.map((teacher:any,i:number)=>(
@@ -641,11 +641,11 @@ function App() {
         </section>
 
         {/* ── TESTIMONIALS ── */}
-        <section id="depoimentos" className="py-20 md:py-28 bg-gray-50">
+        <section id="depoimentos" className="py-12 md:py-28 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="text-center max-w-2xl mx-auto mb-14">
               <p className="text-xs font-black uppercase tracking-widest text-[#6d28d9] font-poppins mb-3">Depoimentos</p>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Veja casos reais de nossos Ex-Alunos</h2>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Veja casos reais de nossos Ex-Alunos</h2>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {(siteData.testimonials || initialSiteData.testimonials || []).slice(0,6).map((t:any,i:number)=>(
@@ -674,11 +674,11 @@ function App() {
         </section>
 
         {/* ── FAQ ── */}
-        <section className="py-20 md:py-28 bg-white">
+        <section className="py-12 md:py-28 bg-white">
           <div className="max-w-3xl mx-auto px-4 md:px-8">
-            <div className="text-center mb-14">
+            <div className="text-center mb-10 md:mb-14">
               <p className="text-xs font-black uppercase tracking-widest text-[#6d28d9] font-poppins mb-3">Dúvidas</p>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Perguntas frequentes</h2>
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 font-poppins leading-tight">Perguntas frequentes</h2>
             </div>
             <div className="space-y-3">
               {faqs.map((faq:any,index:number)=>(
@@ -707,12 +707,12 @@ function App() {
           <div className="max-w-3xl mx-auto px-4 md:px-8 text-center">
             <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}} transition={{duration:0.5}}>
               <p className="text-white/70 text-xs font-black uppercase tracking-widest font-poppins mb-4">Pronto para começar?</p>
-              <h2 className="text-4xl md:text-5xl font-black text-white font-poppins leading-tight mb-6">
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-white font-poppins leading-tight mb-6">
                 Sua voz pode ser<br/>seu maior instrumento
               </h2>
-              <p className="text-white/80 text-lg mb-10 max-w-xl mx-auto">Vagas limitadas por turma. Formação completa com professores ativos no mercado.</p>
+              <p className="text-white/80 text-base md:text-lg mb-8 md:mb-10 max-w-xl mx-auto">Vagas limitadas por turma. Formação completa com professores ativos no mercado.</p>
               <button onClick={()=>handleEnroll()}
-                className="bg-white text-[#6d28d9] font-black text-lg px-10 py-4 rounded-full hover:bg-gray-50 transition-all shadow-xl flex items-center gap-2 mx-auto group">
+                className="bg-white text-[#6d28d9] font-black text-base md:text-lg px-8 md:px-10 py-4 rounded-full hover:bg-gray-50 transition-all shadow-xl flex items-center justify-center gap-2 w-full sm:w-auto sm:mx-auto group">
                 Garantir minha vaga <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform"/>
               </button>
             </motion.div>
@@ -724,7 +724,7 @@ function App() {
       {/* ── FOOTER ── */}
       <footer className="bg-gray-900 text-gray-400 py-16">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <div className="grid md:grid-cols-4 gap-10 mb-12">
+          <div className="grid md:grid-cols-4 gap-6 md:gap-10 mb-8 md:mb-12">
             <div className="md:col-span-2">
               <span className="font-black text-2xl text-white font-poppins">THE HUB</span>
               <p className="mt-3 text-sm leading-relaxed max-w-xs">A escola de dublagem que forma profissionais para os maiores estúdios do Brasil.</p>

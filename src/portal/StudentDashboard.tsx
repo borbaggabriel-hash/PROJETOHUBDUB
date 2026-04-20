@@ -238,7 +238,7 @@ function DashboardView({ setActiveTab, data, studentData, messages, invoices, ag
               Acompanhe sua jornada acadêmica por aqui.
             </p>
           </div>
-          <div className="flex items-center gap-4 bg-gray-50 px-5 py-4 rounded-2xl border border-gray-200 shrink-0">
+          <div className="flex items-center gap-4 bg-gray-50 px-5 py-4 rounded-2xl border border-gray-200 shrink-0 flex-wrap">
             <div className="relative w-14 h-14 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e5e7eb" strokeWidth="10" />
@@ -499,13 +499,13 @@ function AgendaView({ agendaItems }: any) {
       <div className="bg-white border border-gray-200 shadow-sm rounded-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+          <button onClick={prevMonth} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
             ‹
           </button>
           <span className="text-sm text-gray-900 tracking-wide">
             {MONTHS_PT[viewMonth]} {viewYear}
           </span>
-          <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
+          <button onClick={nextMonth} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
             ›
           </button>
         </div>
@@ -529,7 +529,7 @@ function AgendaView({ agendaItems }: any) {
             return (
               <div
                 key={day}
-                className={`relative flex flex-col items-center py-2 rounded-lg transition-colors ${
+                className={`relative flex flex-col items-center py-2.5 min-h-[40px] rounded-lg transition-colors ${
                   isToday ? 'bg-gray-900 text-white' : 'hover:bg-gray-50'
                 }`}
               >
