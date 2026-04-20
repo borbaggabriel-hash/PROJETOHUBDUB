@@ -135,7 +135,42 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
           />
         </div>
 
-        <div className="w-full h-14 sm:h-20 flex items-center justify-center relative px-4 sm:px-12 overflow-visible">
+        {/* ── MOBILE LAYOUT (< sm) ── */}
+        <div className="sm:hidden relative w-full px-4 py-3 pr-10">
+          {/* Row 1: badge chip + headline */}
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="shrink-0 flex flex-col items-center justify-center bg-white rounded-full w-11 h-11 shadow-lg">
+              <span className="text-[#1a1060] font-black text-sm leading-none">{promo.badge}</span>
+              {promo.badgeSubtext && (
+                <span className="text-[#1a1060] font-bold text-[7px] uppercase tracking-wider leading-none mt-0.5">{promo.badgeSubtext}</span>
+              )}
+            </div>
+            <p className="text-white font-semibold text-xs leading-snug drop-shadow-sm">{promo.headline}</p>
+          </div>
+          {/* Row 2: countdown + CTA */}
+          <div className="flex items-center gap-3">
+            {segments && (
+              <span className="font-mono font-black text-xs text-white tabular-nums" aria-live="off">
+                {segments.days}<span className="text-white">{segments.hh}</span>
+                <span className="text-white/50">:</span><span className="text-white">{segments.mm}</span>
+                <span className="text-white/50">:</span><span className="text-white">{segments.ss}</span>
+              </span>
+            )}
+            <button
+              onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
+              className="bg-white text-[#1a1060] font-black text-[10px] px-4 py-1.5 rounded-full uppercase tracking-wide shadow-lg"
+            >
+              {promo.ctaText || 'Matricule-se'}
+            </button>
+          </div>
+          {/* Close */}
+          <button onClick={onDismiss} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1.5 rounded-full" aria-label="Fechar oferta">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* ── DESKTOP LAYOUT (sm+) ── */}
+        <div className="hidden sm:flex w-full h-20 items-center justify-center relative px-12 overflow-visible">
           {/* Animated decorative blobs */}
           <motion.div
             aria-hidden
@@ -153,21 +188,20 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
           />
 
           {/* Centered group */}
-          <div className="flex items-center gap-3 sm:gap-8">
+          <div className="flex items-center gap-8">
 
             {/* Headline */}
-            <motion.p {...fadeUp(0.12)} className="text-white font-semibold text-xs sm:text-sm md:text-base drop-shadow-sm">
+            <motion.p {...fadeUp(0.12)} className="text-white font-semibold text-sm md:text-base drop-shadow-sm">
               {promo.headline}
             </motion.p>
 
-            {/* Badge — hidden on mobile */}
+            {/* Badge — floating circle */}
             <motion.div
               initial={{ scale: 0.55, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 340, damping: 18, delay: 0.05 }}
-              className="hidden sm:block shrink-0 -mt-8 relative z-10"
+              className="shrink-0 -mt-8 relative z-10"
             >
-              {/* Outer glow pulse */}
               <motion.div
                 className="absolute inset-0 rounded-full"
                 style={{ background: bgStyle, filter: 'blur(6px)' }}
@@ -175,7 +209,6 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                 aria-hidden
               />
-              {/* Border ring = bgStyle color */}
               <motion.div
                 className="relative rounded-full p-[3px] shadow-2xl"
                 style={{ background: bgStyle }}
@@ -191,11 +224,10 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
               </motion.div>
             </motion.div>
 
-            {/* Countdown — hidden on mobile */}
+            {/* Countdown */}
             {segments && (
-              <motion.div {...fadeUp(0.25)} className="hidden sm:flex items-center shrink-0 font-mono font-black text-base md:text-lg tabular-nums" aria-live="off">
+              <motion.div {...fadeUp(0.25)} className="flex items-center shrink-0 font-mono font-black text-base md:text-lg tabular-nums" aria-live="off">
                 {segments.days && <span className="text-white/80 mr-1">{segments.days}</span>}
-                {/* hh */}
                 {segments.hh.split('').map((ch, i) => (
                   <motion.span key={`h${i}-${ch}`} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.15, type: 'spring', stiffness: 500 }}
@@ -203,7 +235,6 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
                 ))}
                 <motion.span className="text-white/50 mx-0.5" animate={{ opacity: [1, 0.2, 1] }}
                   transition={{ duration: 1, repeat: Infinity }}>:</motion.span>
-                {/* mm */}
                 {segments.mm.split('').map((ch, i) => (
                   <motion.span key={`m${i}-${ch}`} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.15, type: 'spring', stiffness: 500 }}
@@ -211,7 +242,6 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
                 ))}
                 <motion.span className="text-white/50 mx-0.5" animate={{ opacity: [1, 0.2, 1] }}
                   transition={{ duration: 1, repeat: Infinity, delay: 0.5 }}>:</motion.span>
-                {/* ss — most active */}
                 {segments.ss.split('').map((ch, i) => (
                   <motion.span key={`s${i}-${ch}`} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.18, type: 'spring', stiffness: 600 }}
@@ -220,16 +250,15 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
               </motion.div>
             )}
 
-            {/* CTA — shimmer sweep + lift on hover */}
+            {/* CTA */}
             <motion.button
               {...fadeUp(0.35)}
               onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
               whileHover={{ scale: 1.07, y: -3 }}
               whileTap={{ scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-              className="relative shrink-0 overflow-hidden bg-white text-[#1a1060] font-black text-[10px] sm:text-xs md:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="relative shrink-0 overflow-hidden bg-white text-[#1a1060] font-black text-xs md:text-sm px-7 py-3 rounded-full uppercase tracking-wide shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
-              {/* Continuous shimmer */}
               <motion.span
                 aria-hidden
                 className="absolute inset-y-0 w-1/2 pointer-events-none"
@@ -241,7 +270,7 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
             </motion.button>
           </div>
 
-          {/* Close — rotates 90° on hover */}
+          {/* Close */}
           <motion.button
             onClick={onDismiss}
             whileHover={{ rotate: 90, scale: 1.25 }}
