@@ -135,7 +135,7 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
           />
         </div>
 
-        <div className="w-full h-20 flex items-center justify-center relative px-12 overflow-visible">
+        <div className="w-full h-14 sm:h-20 flex items-center justify-center relative px-4 sm:px-12 overflow-visible">
           {/* Animated decorative blobs */}
           <motion.div
             aria-hidden
@@ -153,19 +153,19 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
           />
 
           {/* Centered group */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3 sm:gap-8">
 
             {/* Headline */}
-            <motion.p {...fadeUp(0.12)} className="text-white font-semibold text-sm md:text-base drop-shadow-sm">
+            <motion.p {...fadeUp(0.12)} className="text-white font-semibold text-xs sm:text-sm md:text-base drop-shadow-sm">
               {promo.headline}
             </motion.p>
 
-            {/* Badge — spring entrance + breathing pulse */}
+            {/* Badge — hidden on mobile */}
             <motion.div
               initial={{ scale: 0.55, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 340, damping: 18, delay: 0.05 }}
-              className="shrink-0 -mt-8 relative z-10"
+              className="hidden sm:block shrink-0 -mt-8 relative z-10"
             >
               {/* Outer glow pulse */}
               <motion.div
@@ -191,9 +191,9 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
               </motion.div>
             </motion.div>
 
-            {/* Countdown — per-segment flip on change */}
+            {/* Countdown — hidden on mobile */}
             {segments && (
-              <motion.div {...fadeUp(0.25)} className="flex items-center shrink-0 font-mono font-black text-base md:text-lg tabular-nums" aria-live="off">
+              <motion.div {...fadeUp(0.25)} className="hidden sm:flex items-center shrink-0 font-mono font-black text-base md:text-lg tabular-nums" aria-live="off">
                 {segments.days && <span className="text-white/80 mr-1">{segments.days}</span>}
                 {/* hh */}
                 {segments.hh.split('').map((ch, i) => (
@@ -227,7 +227,7 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
               whileHover={{ scale: 1.07, y: -3 }}
               whileTap={{ scale: 0.96 }}
               transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-              className="relative shrink-0 overflow-hidden bg-white text-[#1a1060] font-black text-xs md:text-sm px-7 py-3 rounded-full uppercase tracking-wide shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="relative shrink-0 overflow-hidden bg-white text-[#1a1060] font-black text-[10px] sm:text-xs md:text-sm px-4 sm:px-7 py-2 sm:py-3 rounded-full uppercase tracking-wide shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               {/* Continuous shimmer */}
               <motion.span
@@ -489,7 +489,7 @@ function App() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsLoginOpen(true)} className="hidden sm:block text-sm font-medium text-gray-500 hover:text-[#6d28d9] transition-colors">Área do Aluno</button>
+            <button onClick={() => setIsLoginOpen(true)} className="text-sm font-medium text-gray-500 hover:text-[#6d28d9] transition-colors">Área do Aluno</button>
             <button onClick={() => handleEnroll()} className="bg-[#6d28d9] text-white font-bold rounded-full px-5 py-2.5 text-sm hover:bg-[#5b21b6] transition-all shadow-[0_4px_14px_rgba(109,40,217,0.3)]">Matricule-se</button>
           </div>
         </div>
@@ -521,7 +521,7 @@ function App() {
                 </button>
               </motion.div>
             </div>
-            <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.5,delay:0.4}} className="flex flex-wrap gap-4 w-full mt-10">
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.5,delay:0.4}} className="hidden md:flex flex-wrap gap-4 w-full mt-10">
               {[
                 ...uniqueModules.map((mod:any) => mod.title?.split('—')[0]?.trim() || mod.title),
                 'Fisiologia da Voz',
@@ -550,7 +550,7 @@ function App() {
         </section>
 
         {/* ── LOGOS BAR ── */}
-        <section className="py-5 border-y border-gray-100 bg-gray-50">
+        <section className="hidden md:block py-5 border-y border-gray-100 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
             <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 font-poppins">Nossos alunos estão nos maiores estúdios</p>
             <div className="flex gap-4 md:gap-16 items-center justify-center flex-wrap">
