@@ -136,36 +136,21 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
         </div>
 
         {/* ── MOBILE LAYOUT (< sm) ── */}
-        <div className="sm:hidden relative w-full px-4 py-3 pr-10">
-          {/* Row 1: badge chip + headline */}
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className="shrink-0 flex flex-col items-center justify-center bg-white rounded-full w-11 h-11 shadow-lg">
-              <span className="text-[#1a1060] font-black text-sm leading-none">{promo.badge}</span>
-              {promo.badgeSubtext && (
-                <span className="text-[#1a1060] font-bold text-[7px] uppercase tracking-wider leading-none mt-0.5">{promo.badgeSubtext}</span>
-              )}
-            </div>
-            <p className="text-white font-semibold text-xs leading-snug drop-shadow-sm">{promo.headline}</p>
-          </div>
-          {/* Row 2: countdown + CTA */}
-          <div className="flex items-center gap-3">
-            {segments && (
-              <span className="font-mono font-black text-xs text-white tabular-nums" aria-live="off">
-                {segments.days}<span className="text-white">{segments.hh}</span>
-                <span className="text-white/50">:</span><span className="text-white">{segments.mm}</span>
-                <span className="text-white/50">:</span><span className="text-white">{segments.ss}</span>
-              </span>
-            )}
-            <button
-              onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
-              className="bg-white text-[#1a1060] font-black text-[10px] px-4 py-1.5 rounded-full uppercase tracking-wide shadow-lg"
-            >
-              {promo.ctaText || 'Matricule-se'}
-            </button>
-          </div>
-          {/* Close */}
-          <button onClick={onDismiss} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1.5 rounded-full" aria-label="Fechar oferta">
+        <div className="sm:hidden relative w-full px-5 pt-4 pb-5">
+          {/* Close — top right */}
+          <button onClick={onDismiss} className="absolute right-3 top-3 text-white/50 hover:text-white p-1.5 rounded-full" aria-label="Fechar oferta">
             <X className="w-4 h-4" />
+          </button>
+          {/* Headline */}
+          <p className="text-white font-black text-base text-center leading-snug mb-3 drop-shadow-sm pr-6">
+            {promo.headline}
+          </p>
+          {/* Full-width CTA button */}
+          <button
+            onClick={() => promo.ctaAction === 'enroll' ? onEnroll() : window.open(promo.ctaAction, '_blank')}
+            className="w-full bg-white text-[#1a1060] font-black text-sm py-3 rounded-full uppercase tracking-widest shadow-lg"
+          >
+            {promo.ctaText || 'Matricule-se'}
           </button>
         </div>
 
