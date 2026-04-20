@@ -155,19 +155,7 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
             className="text-white font-black text-base text-center leading-snug mb-3 pr-6 drop-shadow-sm"
           >
             {promo.headline}
-            {promo.badge && (
-              <span className="relative inline-block ml-1 overflow-hidden rounded-sm align-text-bottom">
-                {/* shimmer sweep over badge value */}
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-y-0 w-full pointer-events-none"
-                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)' }}
-                  animate={{ x: ['-130%', '230%'] }}
-                  transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 3, ease: 'easeInOut', delay: 0.6 }}
-                />
-                <span className="relative text-white">{promo.badge}</span>
-              </span>
-            )}
+            {promo.badge && <span className="font-black text-white">{promo.badge}</span>}
           </motion.p>
 
           {/* Full-width CTA with shimmer */}
