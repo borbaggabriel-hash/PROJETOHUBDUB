@@ -156,7 +156,7 @@ const PromoBanner = ({ settings, dismissed, onDismiss, onEnroll }: {
           >
             {promo.headline}
             {promo.badge && (
-              <span className="relative inline-block ml-1 overflow-hidden rounded-sm">
+              <span className="relative inline-block ml-1 overflow-hidden rounded-sm align-text-bottom">
                 {/* shimmer sweep over badge value */}
                 <motion.span
                   aria-hidden
