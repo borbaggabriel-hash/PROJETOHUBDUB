@@ -1,25 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronRight, Star, Mic,
   Headphones, Award, ArrowRight,
-  MessageSquare, ChevronDown, X, BookOpen
+  MessageSquare, ChevronDown, X, BookOpen, Menu, Instagram, Youtube
 } from 'lucide-react';
 import { initialSiteData } from './data';
-import { AdminPanel } from './components/AdminPanel';
-import { Login, StudentDashboard, Secretaria } from './portal';
-import { Enrollment } from './components/Enrollment';
+import { Login, Secretaria } from './portal';
 import { firebaseService } from './services/supabaseService';
 
-const pillPalette = [
-  { border: '#6d28d9', text: '#6d28d9', bg: '#f3f0ff' },
-  { border: '#ec4899', text: '#ec4899', bg: '#fdf2f8' },
-  { border: '#3b82f6', text: '#3b82f6', bg: '#eff6ff' },
-  { border: '#a78bfa', text: '#a78bfa', bg: '#f5f3ff' },
-  { border: '#f97316', text: '#f97316', bg: '#fff7ed' },
-];
+const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const StudentDashboard = React.lazy(() => import('./portal/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
+const Enrollment = React.lazy(() => import('./components/Enrollment').then(m => ({ default: m.Enrollment })));
 
-const HoverPill = ({ label, colorIdx: _colorIdx, onClick: _onClick }: { label: string; colorIdx: number; onClick: () => void; key?: React.Key }) => (
+
+const HoverPill = ({ label }: { label: string; key?: React.Key }) => (
   <span className="border-2 border-gray-200 text-gray-600 font-medium px-5 py-2.5 text-sm rounded-full select-none">
     {label}
   </span>
@@ -33,7 +28,7 @@ const gradientBorders: Record<string, string> = {
   'bg-gradient-card-3': 'border-violet-400/40',
 };
 
-const ModuleCard = ({ mod, index, Icon, grad, onEnroll }: any) => {
+const ModuleCard = ({ mod, index, Icon, grad }: any) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const backBorder = gradientBorders[grad] ?? 'border-gray-200';
   const ResolvedIcon = iconMap[mod.icon] ?? Icon;
@@ -371,6 +366,7 @@ function App() {
   const [selectedModuleForEnrollment, setSelectedModuleForEnrollment] = useState<string | undefined>(undefined);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [showAllTeachers, setShowAllTeachers] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isBannerDismissed, setIsBannerDismissed] = useState(
     () => sessionStorage.getItem('promoBannerDismissed') === '1'
   );
@@ -517,8 +513,17 @@ function App() {
     );
   }
 
+  const suspenseFallback = (
+    <div style={{minHeight:'100vh',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{textAlign:'center'}}>
+        <div style={{width:48,height:48,border:'4px solid #6d28d9',borderTopColor:'transparent',borderRadius:'50%',margin:'0 auto 16px',animation:'spin 1s linear infinite'}} />
+        <p style={{color:'#6d28d9',fontWeight:'bold',fontSize:12,letterSpacing:2}}>CARREGANDO...</p>
+      </div>
+    </div>
+  );
+
   if (isAdminOpen) {
-    return <AdminPanel data={siteData} onSave={handleSaveAdmin} onClose={() => setIsAdminOpen(false)} />;
+    return <Suspense fallback={suspenseFallback}><AdminPanel data={siteData} onSave={handleSaveAdmin} onClose={() => setIsAdminOpen(false)} /></Suspense>;
   }
 
   if (isSecretariaOpen) {
@@ -537,17 +542,19 @@ function App() {
 
   if (isStudentDashboardOpen) {
     return (
-      <StudentDashboard 
-        onLogout={handleLogout} 
-        onHome={() => setIsStudentDashboardOpen(false)} 
-        data={siteData} 
-        studentData={studentData}
-        onRefreshProfile={() => currentUser && loadStudentData(currentUser.id ?? currentUser.uid)}
-      />
+      <Suspense fallback={suspenseFallback}>
+        <StudentDashboard 
+          onLogout={handleLogout} 
+          onHome={() => setIsStudentDashboardOpen(false)} 
+          data={siteData} 
+          studentData={studentData}
+          onRefreshProfile={() => currentUser && loadStudentData(currentUser.id ?? currentUser.uid)}
+        />
+      </Suspense>
     );
   }
 
-  const faqs = (siteData.faqs?.length ?? 0) >= 8 ? siteData.faqs : initialSiteData.faqs;
+  const faqs = (siteData.faqs?.length ?? 0) > 0 ? siteData.faqs : initialSiteData.faqs;
   const moduleGradients = ['bg-gradient-card-1', 'bg-gradient-card-2', 'bg-gradient-card-3'];
   const moduleIcons = [Mic, Headphones, Award];
   const TEACHER_ORDER = ['Vitor', 'Daniel', 'Ettore'];
@@ -583,10 +590,32 @@ function App() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsLoginOpen(true)} className="text-sm font-medium text-gray-500 hover:text-[#6d28d9] transition-colors">Área do Aluno</button>
-            <button onClick={() => handleEnroll()} className="bg-[#6d28d9] text-white font-bold rounded-full px-5 py-2.5 text-sm hover:bg-[#5b21b6] transition-all shadow-[0_4px_14px_rgba(109,40,217,0.3)]">Matricule-se</button>
+            <button onClick={() => setIsLoginOpen(true)} className="hidden md:block text-sm font-medium text-gray-500 hover:text-[#6d28d9] transition-colors">Área do Aluno</button>
+            <button onClick={() => handleEnroll()} className="hidden md:block bg-[#6d28d9] text-white font-bold rounded-full px-5 py-2.5 text-sm hover:bg-[#5b21b6] transition-all shadow-[0_4px_14px_rgba(109,40,217,0.3)]">Matricule-se</button>
+            <button onClick={() => setIsMobileMenuOpen(v => !v)} className="md:hidden p-2 text-gray-700 hover:text-[#6d28d9] transition-colors" aria-label="Menu">
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </div>
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="md:hidden overflow-hidden bg-white border-t border-gray-100"
+            >
+              <nav className="flex flex-col px-6 py-4 gap-1">
+                {[['#curso','O Curso'],['#modulos','Módulos'],['#professores','Professores'],['#depoimentos','Depoimentos']].map(([href,label])=>(
+                  <a key={href} href={href} onClick={() => setIsMobileMenuOpen(false)} className="text-sm font-medium text-gray-600 hover:text-[#6d28d9] transition-colors py-3 border-b border-gray-50">{label}</a>
+                ))}
+                <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="text-sm font-medium text-gray-600 hover:text-[#6d28d9] transition-colors py-3 border-b border-gray-50 text-left">Área do Aluno</button>
+                <button onClick={() => { setIsMobileMenuOpen(false); handleEnroll(); }} className="mt-2 bg-[#6d28d9] text-white font-bold rounded-full px-5 py-3 text-sm hover:bg-[#5b21b6] transition-all text-center">Matricule-se</button>
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <main>
@@ -618,25 +647,11 @@ function App() {
             <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.5,delay:0.4}} className="hidden md:flex flex-wrap gap-4 w-full mt-10">
               {[
                 ...uniqueModules.map((mod:any) => mod.title?.split('—')[0]?.trim() || mod.title),
-                'Fisiologia da Voz',
-                'Articulação e Dicção',
-                'Introdução à Isócrona',
-                'Sincronia de Labiais',
-                'Timing de Comédia',
-                'Voz Caracterizada',
-                'ADR e Esforços Físicos',
-                'O Choro na Dublagem',
-                'Preparação de Demo Reel',
-                'Home Studio para Dubladores',
-                'Testes de Dublagem',
-                'Portfólio Final',
-                'Masterclass: O Ator no Séc. XXI',
+                ...uniqueModules.flatMap((mod:any) => mod.details?.lessons?.slice(0, 5) ?? []),
               ].map((label, i) => (
                 <HoverPill
                   key={`pill-${i}`}
                   label={label}
-                  colorIdx={i}
-                  onClick={() => document.getElementById('modulos')?.scrollIntoView({behavior:'smooth'})}
                 />
               ))}
             </motion.div>
@@ -644,12 +659,12 @@ function App() {
         </section>
 
         {/* ── LOGOS BAR ── */}
-        <section className="hidden md:block py-5 border-y border-gray-100 bg-gray-50">
+        <section className="py-5 border-y border-gray-100 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8 text-center">
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 font-poppins">Nossos alunos estão nos maiores estúdios</p>
-            <div className="flex gap-4 md:gap-16 items-center justify-center flex-wrap">
+            <p className="text-xs md:text-sm font-bold text-gray-400 uppercase tracking-widest mb-4 font-poppins">Nossos alunos estão nos maiores estúdios</p>
+            <div className="flex gap-6 md:gap-16 items-center justify-start md:justify-center overflow-x-auto scrollbar-none pb-1">
               {['NETFLIX','PRIME VIDEO','DISNEY+','HBO MAX','CRUNCHYROLL'].map(s=>(
-                <span key={s} className="text-xs sm:text-sm md:text-2xl font-black tracking-tight text-gray-300 font-poppins">{s}</span>
+                <span key={s} className="text-sm md:text-2xl font-black tracking-tight text-gray-300 font-poppins whitespace-nowrap shrink-0">{s}</span>
               ))}
             </div>
           </div>
@@ -671,7 +686,6 @@ function App() {
                   index={i}
                   Icon={moduleIcons[i] ?? Mic}
                   grad={moduleGradients[i] ?? 'bg-gradient-card-1'}
-                  onEnroll={handleEnroll}
                 />
               ))}
             </div>
@@ -682,11 +696,18 @@ function App() {
         <section className="py-10 md:py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {[
-                {value:'18',unit:'meses',label:'de formação completa',grad:'bg-gradient-stat-1'},
-                {value:'72',unit:'aulas',label:'ao vivo com feedback individual',grad:'bg-gradient-stat-2'},
-                {value:'3',unit:'módulos',label:'progressivos do zero ao mercado',grad:'bg-gradient-stat-3'},
-              ].map((stat,i)=>(
+              {(() => {
+                const totalMonths = uniqueModules.reduce((acc: number, m: any) => {
+                  const n = parseInt(m.duration, 10);
+                  return acc + (Number.isFinite(n) ? n : 6);
+                }, 0);
+                const totalLessons = uniqueModules.reduce((acc: number, m: any) => acc + (m.details?.lessons?.length ?? 24), 0);
+                return [
+                  {value: String(totalMonths), unit:'meses', label:'de formação completa', grad:'bg-gradient-stat-1'},
+                  {value: String(totalLessons), unit:'aulas', label:'ao vivo com feedback individual', grad:'bg-gradient-stat-2'},
+                  {value: String(uniqueModules.length), unit:'módulos', label:'progressivos do zero ao mercado', grad:'bg-gradient-stat-3'},
+                ];
+              })().map((stat,i)=>(
                 <motion.div key={i} initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
                   transition={{duration:0.5,delay:i*0.1}}
                   className={`${stat.grad} rounded-3xl p-8 text-white`}>
@@ -793,9 +814,9 @@ function App() {
               <span className="font-black text-2xl text-white font-poppins">THE HUB</span>
               <p className="mt-3 text-sm leading-relaxed max-w-xs">A escola de dublagem que forma profissionais para os maiores estúdios do Brasil.</p>
               <div className="flex gap-3 mt-5">
-                {['I','Y','T'].map(s=>(
-                  <a key={s} href="#" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#6d28d9] transition-colors text-xs font-bold">{s}</a>
-                ))}
+                <a href="#" aria-label="Instagram" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#6d28d9] transition-colors"><Instagram className="w-4 h-4" /></a>
+                <a href="#" aria-label="YouTube" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#6d28d9] transition-colors"><Youtube className="w-4 h-4" /></a>
+                <a href="#" aria-label="TikTok" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#6d28d9] transition-colors text-xs font-bold">T</a>
               </div>
             </div>
             <div>
@@ -825,13 +846,15 @@ function App() {
         </div>
       </footer>
 
-      <Enrollment
-        isOpen={isEnrollmentOpen}
-        onClose={()=>setIsEnrollmentOpen(false)}
-        modules={siteData.modules}
-        initialModule={selectedModuleForEnrollment}
-        onEnroll={handleNewEnrollment}
-      />
+      <Suspense fallback={null}>
+        <Enrollment
+          isOpen={isEnrollmentOpen}
+          onClose={()=>setIsEnrollmentOpen(false)}
+          modules={siteData.modules}
+          initialModule={selectedModuleForEnrollment}
+          onEnroll={handleNewEnrollment}
+        />
+      </Suspense>
 
       <PromoBanner
         settings={siteData.settings}

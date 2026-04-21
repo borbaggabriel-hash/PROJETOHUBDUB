@@ -53,7 +53,7 @@ export function AdminPanel({ data, onSave, onClose }: any) {
 
   const handleSeedDatabase = async () => {
     const confirmed = window.confirm(
-      'Isso vai sobrescrever banners, módulos, learnings, depoimentos, FAQs e configurações no Firestore com os dados padrão do currículo.\n\nContinuar?'
+      'Isso vai sobrescrever banners, módulos, learnings, depoimentos, FAQs e configurações no Supabase com os dados padrão do currículo.\n\nContinuar?'
     );
     if (!confirmed) return;
     setIsSeedingDb(true);

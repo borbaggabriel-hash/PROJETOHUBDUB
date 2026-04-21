@@ -9,6 +9,7 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +22,23 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
       }
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setError('Preencha o e-mail acima para redefinir a senha.');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      await firebaseService.resetPassword(email);
+      setResetSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao enviar e-mail de redefinição.');
     } finally {
       setIsLoading(false);
     }
@@ -52,6 +70,11 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
                 {error}
               </div>
             )}
+            {resetSent && (
+              <div className="p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
+                E-mail de redefinição enviado! Verifique sua caixa de entrada.
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm text-gray-600">E-mail</label>
               <div className="relative">
@@ -69,7 +92,7 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-sm text-gray-600">Senha</label>
-                <a href="#" className="text-xs text-cyan-600 hover:text-cyan-700 transition-colors">Esqueceu a senha?</a>
+                <button type="button" onClick={handleResetPassword} className="text-xs text-cyan-600 hover:text-cyan-700 transition-colors">Esqueceu a senha?</button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden />

@@ -147,6 +147,11 @@ export const supabaseService = {
     return { user: data.user };
   },
 
+  async resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  },
+
   async signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -172,11 +177,17 @@ export const supabaseService = {
   },
 
   async getStudentEnrollments(userId: string) {
+    // Try by student_id first (admin-created enrollments)
+    const { data: byId, error: idError } = await supabaseAdmin.from('enrollments').select('*').eq('student_id', userId);
+    if (idError) console.warn('getStudentEnrollments by id failed:', idError.message);
+    // Also try by email (public form submissions)
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-    const { data, error } = await supabase.from('enrollments').select('*').eq('email', user.email ?? '');
-    if (error) handleError(error, 'list', 'enrollments');
-    return data ?? [];
+    let byEmail: any[] = [];
+    if (user?.email) {
+      const { data: emailData } = await supabase.from('enrollments').select('*').eq('email', user.email).is('student_id', null);
+      byEmail = emailData ?? [];
+    }
+    return [...(byId ?? []), ...byEmail];
   },
 
   async getStudentActivity(userId: string) {

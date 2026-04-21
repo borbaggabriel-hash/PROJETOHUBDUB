@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, User, Mail, Phone, BookOpen, CheckCircle2, Mic, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
@@ -21,6 +21,13 @@ export const Enrollment: React.FC<EnrollmentProps> = ({ isOpen, onClose, modules
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(prev => ({ ...prev, module: initialModule || '' }));
+      setIsSuccess(false);
+    }
+  }, [isOpen, initialModule]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
