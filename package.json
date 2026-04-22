@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite --port=3001 --host=0.0.0.0",
     "server": "tsx watch server/index.ts",
-    "build": "vite build",
+    "build": "vite build && tsx script/build-server.ts",
     "preview": "vite preview",
-    "start": "node server.js",
+    "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
@@ -47,6 +47,7 @@
     "@types/pg": "^8.11.14",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
+    "esbuild": "^0.25.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
