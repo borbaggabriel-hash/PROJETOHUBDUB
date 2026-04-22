@@ -8,6 +8,7 @@ import {
 import { initialSiteData } from './data';
 import { Login, Secretaria } from './portal';
 import { firebaseService } from './services/supabaseService';
+import { authService } from './services/authService';
 
 const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const StudentDashboard = React.lazy(() => import('./portal/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
@@ -390,7 +391,7 @@ function App() {
       try {
         const [data, user] = await Promise.all([
           firebaseService.getSiteData(),
-          firebaseService.getCurrentUser()
+          authService.getCurrentUser()
         ]);
 
         if (!isMounted) return;
@@ -461,7 +462,7 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await firebaseService.signOut();
+    await authService.logout();
     setCurrentUser(null);
     setStudentData(null);
     setIsStudentDashboardOpen(false);

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Mail, Lock } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { firebaseService } from '../services/supabaseService';
+import { authService } from '../services/authService';
 
 export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBack: () => void }) {
   const [email, setEmail] = useState('');
@@ -16,10 +16,8 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
     setIsLoading(true);
     setError(null);
     try {
-      const result = await firebaseService.signIn(email, password);
-      if (result.user) {
-        onLogin(result.user);
-      }
+      const user = await authService.login(email, password);
+      onLogin(user);
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
     } finally {
@@ -35,7 +33,9 @@ export function Login({ onLogin, onBack }: { onLogin: (user: any) => void, onBac
     setIsLoading(true);
     setError(null);
     try {
-      await firebaseService.resetPassword(email);
+      // Reset de senha: disponível apenas pelo painel admin do Supabase
+      // O fluxo de reset via e-mail usa o projeto SITE-HUB-STUDIO (porta 5002)
+      throw new Error('Use o portal de estúdio (HubDub Studio) para redefinir sua senha.');
       setResetSent(true);
     } catch (err: any) {
       setError(err.message || 'Erro ao enviar e-mail de redefinição.');
